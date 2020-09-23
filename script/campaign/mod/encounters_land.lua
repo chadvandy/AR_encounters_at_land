@@ -1,43 +1,7 @@
 local encounter_land_location_set = require("script/campaign/land_encounters/mortal_coords")
 local vortex_encounter_land_location_set = require("script/campaign/land_encounters/vortex_coords")
 
-local bandit_names = {
-	"names_name_888888900",
-	"names_name_888888901",
-	"names_name_888888902",
-	"names_name_888888903",
-	"names_name_888888904",
-	"names_name_888888905",
-	"names_name_888888906",
-	"names_name_888888907",
-	"names_name_888888908",
-	"names_name_888888909",
-	"names_name_888888910",
-	"names_name_888888911",
-	"names_name_888888912",
-	"names_name_888888913",
-	"names_name_888888914",
-	"names_name_888888915",
-	"names_name_888888881",
-	"names_name_888888882",
-	"names_name_888888883",
-	"names_name_888888884",
-	"names_name_888888885",
-	"names_name_888888886",
-	"names_name_888888887",
-	"names_name_888888888",
-	"names_name_888888889",
-	"names_name_888888890",
-	"names_name_888888891",
-	"names_name_888888892",
-	"names_name_888888893",
-	"names_name_888888894",
-	"names_name_888888895",
-	"names_name_888888896",
-	"names_name_888888897",
-	"names_name_888888898",
-	"names_name_888888899"
-};
+local bandit_names = require("script/campaign/land_encounters/bandit_names")
 
 local land_encounter_starting_faction = "";
 
