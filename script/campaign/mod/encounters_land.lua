@@ -131,8 +131,6 @@ local alternative_encounter_pirate_faction = "wh2_main_def_dark_elves_qb1";
 
 local land_encounter_listener_info = {false, false, false, "", "", "", ""};
 
-local land_encounter_listener_info_default = {false, false, false, "", "", "", ""};
-
 local encounter_land_spots = {};
 
 local land_encounter_turn_recorder = 0;
@@ -960,16 +958,7 @@ cm:add_loading_game_callback(
 		land_encounter_turn_recorder = cm:load_named_value("land_encounter_turn_recorder", 0, context);
 		land_encounter_starting_faction = cm:load_named_value("land_encounter_starting_faction", "none", context);
 		encounter_land_spots = cm:load_named_value("encounter_land_spots", {}, context);
-		land_encounter_listener_info = cm:load_named_value("land_encounter_listener_info", land_encounter_listener_info_default, context);
-
-		--[[out("testing1")
-		out(land_encounter_listener_info[1])
-		out(land_encounter_listener_info[2])
-		out(land_encounter_listener_info[3])
-		out(land_encounter_listener_info[4])
-		out(land_encounter_listener_info[5])
-		out(land_encounter_listener_info[6])
-		out(land_encounter_listener_info[7])]]
+		land_encounter_listener_info = cm:load_named_value("land_encounter_listener_info", {}, context);
 	end
 );
 
