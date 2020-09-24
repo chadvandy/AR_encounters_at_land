@@ -1,7 +1,11 @@
 local encounter_land_location_set = require("script/campaign/land_encounters/mortal_coords")
 local vortex_encounter_land_location_set = require("script/campaign/land_encounters/vortex_coords")
-
 local bandit_names = require("script/campaign/land_encounters/bandit_names")
+local bandit_forces = require("script/campaign/land_encounters/bandit_forces")
+
+
+local army_land_encounters_leader = ""
+local bandit_name_land_encounters = ""
 
 local land_encounter_starting_faction = "";
 
@@ -720,48 +724,11 @@ out("ending PostBattle Listener!")
 
 end
 
-function land_ReconstructListeners()
-	local lokhir_listener = land_encounter_listener_info[1];
+local function land_ReconstructListeners()
 	local pirate_listener = land_encounter_listener_info[2];
 	local encounter_post_battle_listener = land_encounter_listener_info[3];
-	local mission_key = land_encounter_listener_info[4];
-	local next_mission_key = land_encounter_listener_info[5];
 	local faction_key = land_encounter_listener_info[6];
 	local incident = land_encounter_listener_info[7];
-	
-	if lokhir_listener == true then
-		--lokir listener
-		core:add_listener(
-		"Lokhir_mission_listener",
-		"AreaEntered", 
-		function(context)
-			out.design("checking lokhir mission existing or not");
-			return true;
-		end,
-		function(context)
-			local index = tonumber(string.sub(context:area_key(), 13));
-			if not index then
-				out("not an encounter!");
-			else
-				out("an encounter!");
-				local character = context:character();
-				local faction = character:faction();
-				local faction_name = faction:name();
-				out("acessing lokhir check");
-				out(faction_name);
-				if lokhir_faction == faction_name then
-					out("it is lokhir");
-					cm:complete_scripted_mission_objective(mission_key, "joys_mission", true);
-					cm:trigger_mission(lokhir_faction, next_mission_key, true);
-					land_encounter_listener_info[1] = false;
-					land_encounter_listener_info[4] = "";
-					land_encounter_listener_info[5] = "";
-				end;
-			end;
-		end,
-		false
-		);
-	end
 	
 	if pirate_listener == true then
 		--remove pirate encounter force
@@ -784,115 +751,45 @@ function land_ReconstructListeners()
 end
 
 --bandit armies
-function land_declare_armies()
-random_army_manager:remove_force("encounter_force_bandits")
-cm:callback(function() 
-local bandit_army_roll = cm:random_number(6)
-out("Next army will be "..bandit_army_roll)
-if bandit_army_roll == 1 then
-		random_army_manager:new_force("encounter_force_bandits");
-		random_army_manager:add_mandatory_unit("encounter_force_bandits", "wh_main_emp_inf_halberdiers", 2);
-		random_army_manager:add_mandatory_unit("encounter_force_bandits", "wh_main_emp_inf_handgunners", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_main_emp_inf_greatswords", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_main_emp_inf_greatswords", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_main_emp_inf_spearmen_1", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_main_emp_art_helstorm_rocket_battery", 1);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_main_emp_cav_empire_knights", 1);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_main_emp_cav_outriders_0", 1);
-		random_army_manager:add_unit("encounter_force_bandits", "wh2_dlc13_emp_inf_huntsmen_0", 1);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_main_emp_art_mortar", 1);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_main_emp_inf_crossbowmen", 2);
-		army_land_encounters_leader = "emp_lord"
+local function land_declare_armies()
+	local force_key = "encounter_force_bandits"
+	random_army_manager:remove_force(force_key)
+
+	cm:callback(function() 
+		local bandit_army_roll = cm:random_number(6)
+		--out("Next army will be "..bandit_army_roll)
+
+		local bandit_force = bandit_forces[bandit_army_roll]
+
+		local lord_key = bandit_force.lord
+		local mandatory_units_table = bandit_force.mandatory_units
+		local single_weight_table = bandit_force.single_weight
+		local double_weight_table = bandit_force.double_weight
+
+		random_army_manager:new_force(force_key);
+
+		for i = 1, #mandatory_units_table do
+			local key = mandatory_units_table[i]
+
+			random_army_manager:add_mandatory_unit(force_key, key, 2)
+		end
+
+		for i = 1, #single_weight_table do
+			local key = single_weight_table[i]
+
+			random_army_manager:add_unit(force_key, key, 1)
+		end
+
+		for i = 1, #double_weight_table do
+			local key = double_weight_table[i]
+
+			random_army_manager:add_unit(force_key, key, 2)
+		end
+
+		army_land_encounters_leader = lord_key
 		local name_value = math.random(1,#bandit_names)
 		bandit_name_land_encounters = bandit_names[name_value]
-end;
-if bandit_army_roll == 2 then
-		random_army_manager:new_force("encounter_force_bandits");
-		random_army_manager:add_mandatory_unit("encounter_force_bandits", "wh_dlc08_nor_inf_marauder_champions_0", 2);
-		random_army_manager:add_mandatory_unit("encounter_force_bandits", "wh_dlc08_nor_inf_marauder_hunters_0", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_dlc08_nor_feral_manticore", 1);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_dlc08_nor_mon_norscan_giant_0", 1);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_dlc08_nor_mon_fimir_1", 1);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_dlc08_nor_mon_skinwolves_1", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_dlc08_nor_inf_marauder_berserkers_0", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_main_nor_mon_chaos_warhounds_1", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_dlc08_nor_mon_war_mammoth_0", 1);
-		army_land_encounters_leader = "nor_marauder_chieftain"
-		local name_value = math.random(1,#bandit_names)
-		bandit_name_land_encounters = bandit_names[name_value]
-end;
-if bandit_army_roll == 3 then
-		random_army_manager:new_force("encounter_force_bandits");
-		random_army_manager:add_mandatory_unit("encounter_force_bandits", "wh_main_grn_inf_black_orcs", 2);
-		random_army_manager:add_mandatory_unit("encounter_force_bandits", "wh_main_grn_inf_night_goblin_archers", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_main_grn_mon_giant", 1);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_main_grn_mon_trolls", 1);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_main_grn_inf_black_orcs", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_main_grn_cav_orc_boar_boyz", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_dlc06_grn_inf_nasty_skulkers_0", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_main_grn_inf_goblin_spearmen", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_main_grn_inf_savage_orcs", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_dlc06_grn_inf_nasty_skulkers_0", 1);
-		army_land_encounters_leader = "grn_orc_warboss"
-		local name_value = math.random(1,#bandit_names)
-		bandit_name_land_encounters = bandit_names[name_value]
-end;
-if bandit_army_roll == 4 then
-		random_army_manager:new_force("encounter_force_bandits");
-		random_army_manager:add_mandatory_unit("encounter_force_bandits", "wh2_main_def_inf_darkshards_1", 2);
-		random_army_manager:add_mandatory_unit("encounter_force_bandits", "wh2_main_def_inf_black_guard_0", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh2_main_def_art_reaper_bolt_thrower", 1);
-		random_army_manager:add_unit("encounter_force_bandits", "wh2_main_def_mon_black_dragon", 1);
-		random_army_manager:add_unit("encounter_force_bandits", "wh2_main_def_inf_shades_0", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh2_main_def_inf_bleakswords_0", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh2_main_def_cav_cold_one_knights_1", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh2_main_def_inf_shades_1", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh2_main_def_mon_war_hydra_0", 1);
-		random_army_manager:add_unit("encounter_force_bandits", "wh2_dlc10_def_inf_sisters_of_slaughter", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh2_main_def_inf_harpies", 1);
-		army_land_encounters_leader = "wh2_main_def_dreadlord"
-		local name_value = math.random(1,#bandit_names)
-		bandit_name_land_encounters = bandit_names[name_value]
-end;
-if bandit_army_roll == 5 then
-		random_army_manager:new_force("encounter_force_bandits");
-		random_army_manager:add_mandatory_unit("encounter_force_bandits", "wh2_main_skv_inf_clanrat_spearmen_1", 2);
-		random_army_manager:add_mandatory_unit("encounter_force_bandits", "wh2_dlc14_skv_inf_eshin_triads_0", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh2_main_skv_mon_hell_pit_abomination", 1);
-		random_army_manager:add_unit("encounter_force_bandits", "wh2_dlc12_skv_inf_warplock_jezzails_0", 1);
-		random_army_manager:add_unit("encounter_force_bandits", "wh2_main_skv_inf_plague_monks", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh2_main_skv_mon_rat_ogres", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh2_main_skv_inf_stormvermin_1", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh2_main_skv_inf_skavenslave_slingers_0", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh2_main_skv_inf_gutter_runners_1", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh2_main_skv_inf_night_runners_1", 1);
-		random_army_manager:add_unit("encounter_force_bandits", "wh2_dlc14_skv_inf_eshin_triads_0", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh2_main_skv_veh_doomwheel", 1);
-		random_army_manager:add_unit("encounter_force_bandits", "wh2_dlc14_skv_inf_poison_wind_mortar_0", 1);
-		army_land_encounters_leader = "wh2_main_skv_warlord"
-		local name_value = math.random(1,#bandit_names)
-		bandit_name_land_encounters = bandit_names[name_value]
-end;	
-if bandit_army_roll == 6 then
-		random_army_manager:new_force("encounter_force_bandits");
-		random_army_manager:add_mandatory_unit("encounter_force_bandits", "wh_dlc05_wef_inf_deepwood_scouts_0", 2);
-		random_army_manager:add_mandatory_unit("encounter_force_bandits", "wh_dlc05_wef_inf_glade_guard_0", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_dlc05_wef_inf_eternal_guard_0", 1);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_dlc05_wef_cha_ancient_treeman_0", 1);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_dlc05_wef_mon_treekin_0", 1);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_dlc05_wef_inf_dryads_0", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_dlc05_wef_inf_waywatchers_0", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_dlc05_wef_inf_wardancers_0", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_dlc05_wef_cav_wild_riders_0", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_dlc05_wef_cav_wild_riders_1", 1);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_dlc05_wef_inf_deepwood_scouts_0", 2);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_dlc05_wef_forest_dragon_0", 1);
-		random_army_manager:add_unit("encounter_force_bandits", "wh_dlc05_wef_inf_deepwood_scouts_1", 1);
-		army_land_encounters_leader = "dlc05_wef_glade_lord"
-		local name_value = math.random(1,#bandit_names)
-		bandit_name_land_encounters = bandit_names[name_value]
-end;	
-end, 0.1)
+	end, 0.1)
 end
 
 function levels_for_land_encounters(force_leader)
@@ -1196,10 +1093,6 @@ out("evasion is nil so killing it at encounter removal!")
 out("ending land_SetupEncounterForceRemoval!")
 end
 
-function land_initialize_encounter_listeners()
-	land_ReconstructListeners();
-out("listeners have been reset!")
-end
 
 cm:add_saving_game_callback(
 	function(context)
@@ -1215,31 +1108,34 @@ cm:add_loading_game_callback(
 		land_encounter_starting_faction = cm:load_named_value("land_encounter_starting_faction", "none", context);
 		encounter_land_spots = cm:load_named_value("encounter_land_spots", {}, context);
 		land_encounter_listener_info = cm:load_named_value("land_encounter_listener_info", land_encounter_listener_info_default, context);
-out("testing1")
-out(land_encounter_listener_info[1])
-out(land_encounter_listener_info[2])
-out(land_encounter_listener_info[3])
-out(land_encounter_listener_info[4])
-out(land_encounter_listener_info[5])
-out(land_encounter_listener_info[6])
-out(land_encounter_listener_info[7])
+
+		--[[out("testing1")
+		out(land_encounter_listener_info[1])
+		out(land_encounter_listener_info[2])
+		out(land_encounter_listener_info[3])
+		out(land_encounter_listener_info[4])
+		out(land_encounter_listener_info[5])
+		out(land_encounter_listener_info[6])
+		out(land_encounter_listener_info[7])]]
 	end
 );
 
 cm:add_first_tick_callback(
-function()
-land_initialize_encounter_listeners()
-land_declare_armies()
-out("reinitialised listeners")
-end
+	function()
+		land_ReconstructListeners()
+		land_declare_armies()
+		--out("reinitialised listeners")
+	end
 );
 
 core:add_listener(
 	"faction_turn_start_declare_varied_land_enc",
 	"FactionTurnStart",
-	function(context) return context:faction():is_human() == true; end,
+	function(context) 
+		return context:faction():is_human() == true
+	end,
 	function()
-	land_declare_armies()
+		land_declare_armies()
 	end,
 	true
 );
@@ -1247,9 +1143,7 @@ core:add_listener(
 core:add_listener(
 	"remove_enc_select_land",
 	"CharacterSelected",
-	function(context)
-	return true
-	end,
+	true,
 	function(context)
 		random_army_manager:remove_force("encounter_force_bandits")
 	end,
