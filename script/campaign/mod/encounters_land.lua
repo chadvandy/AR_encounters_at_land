@@ -1,7 +1,8 @@
-local encounter_land_location_set = require("script/campaign/land_encounters/mortal_coords")
-local vortex_encounter_land_location_set = require("script/campaign/land_encounters/vortex_coords")
-local bandit_names = require("script/campaign/land_encounters/bandit_names")
-local bandit_forces = require("script/campaign/land_encounters/bandit_forces")
+local encounter_land_location_set = require("script/land_encounters/mortal_coords")
+local vortex_encounter_land_location_set = require("script/land_encounters/vortex_coords")
+local bandit_names = require("script/land_encounters/bandit_names")
+local bandit_forces = require("script/land_encounters/bandit_forces")
+local bandit_lord_skills = require("script/land_encounters/bandit_lord_skills")
 
 
 local army_land_encounters_leader = ""
@@ -792,191 +793,44 @@ local function land_declare_armies()
 	end, 0.1)
 end
 
-function levels_for_land_encounters(force_leader)
-local char_str_enc = cm:char_lookup_str(force_leader:command_queue_index());
-local turn = cm:model():turn_number()
-		if turn <= 25 then
-		elseif turn > 25 and turn <= 50 then 
+local function levels_for_land_encounters(force_leader)
+	local char_str_enc = cm:char_lookup_str(force_leader:command_queue_index());
+	local turn = cm:model():turn_number()
+
+	if turn <= 25 then
+		-- do naught
+	elseif turn > 25 and turn <= 50 then 
 		cm:add_agent_experience(char_str_enc, math.random(3000, 5000))
-		elseif turn > 50 and turn <= 75 then
+	elseif turn > 50 and turn <= 75 then
 		cm:add_agent_experience(char_str_enc, math.random(5000, 7000))
-		elseif turn > 75 and turn <= 100 then
+	elseif turn > 75 and turn <= 100 then
 		cm:add_agent_experience(char_str_enc, math.random(7000, 9000))
-		elseif turn > 100 and turn <= 125 then
+	elseif turn > 100 and turn <= 125 then
 		cm:add_agent_experience(char_str_enc, math.random(9000, 11000))
-		elseif turn > 125 and turn <= 150 then
+	elseif turn > 125 and turn <= 150 then
 		cm:add_agent_experience(char_str_enc, math.random(11000, 13000))
-		elseif turn > 150 and turn <= 175 then
+	elseif turn > 150 and turn <= 175 then
 		cm:add_agent_experience(char_str_enc, math.random(13000, 15000))
-		elseif turn > 175 then
+	elseif turn > 175 then
 		cm:add_agent_experience(char_str_enc, math.random(15000, 17000))
-		end;
+	end
 end
 
-function skills_for_land_encounters(force_leader)
-local char_str_enc = cm:char_lookup_str(force_leader:command_queue_index());
-local char_rank_landenc = force_leader:rank()
-out("rank is")
-out(char_rank_landenc)
---norsca
-if army_land_encounters_leader == "nor_marauder_chieftain" then
-	cm:force_add_skill(char_str_enc, "wh_main_skill_chs_lord_battle_dominating_presence")
-	cm:force_add_skill(char_str_enc, "wh_dlc08_skill_nor_lord_self_drinker_of_blood")
-end
---empire
-if army_land_encounters_leader == "emp_lord" then
-	cm:force_add_skill(char_str_enc, "wh_main_skill_all_lord_battle_inspiring_presence")
-	cm:force_add_skill(char_str_enc, "wh_main_skill_all_all_self_hard_to_hit_starter")
-end
-if army_land_encounters_leader == "wh2_main_skv_warlord" then
-	cm:force_add_skill(char_str_enc, "wh_main_skill_all_lord_battle_inspiring_presence")
-	cm:force_add_skill(char_str_enc, "wh2_main_skill_skv_combat_tail_weapon")
-end
-if army_land_encounters_leader == "dlc05_wef_glade_lord" then
-	cm:force_add_skill(char_str_enc, "wh_main_skill_all_lord_battle_inspiring_presence")
-	cm:force_add_skill(char_str_enc, "wh_main_skill_all_all_self_foe-seeker")
-end
-if army_land_encounters_leader == "wh2_main_def_dreadlord" then
-	cm:force_add_skill(char_str_enc, "wh_main_skill_all_lord_battle_inspiring_presence")
-	cm:force_add_skill(char_str_enc, "wh2_main_skill_def_combat_sea_dragon_cloak")
-end
-if army_land_encounters_leader == "grn_orc_warboss" then
-	cm:force_add_skill(char_str_enc, "wh_main_skill_all_lord_battle_inspiring_presence")
-	cm:force_add_skill(char_str_enc, "wh_main_skill_all_all_self_blade_master_starter")
-end
+-- add in the skills for the bandit faction leaders
+-- TODO decide if there should be some chance to these?
+local function skills_for_land_encounters(force_leader)
+	local char_str_enc = cm:char_lookup_str(force_leader:command_queue_index());
+	--local char_rank_landenc = force_leader:rank()
+	local char_skills = bandit_lord_skills[force_leader:character_subtype_key()]
+	if char_skills then
+		for i = 1, #char_skills do
+			local skill_key = char_skills[i]
+
+			cm:force_add_skill(char_str_enc, skill_key)
+		end
+	end
 end
 
-function skills_for_land_encounters_second_tier(force_leader)
-local char_str_enc = cm:char_lookup_str(force_leader:command_queue_index());
-local char_rank_landenc = force_leader:rank()
---norsca
-if army_land_encounters_leader == "nor_marauder_chieftain" then
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_nor_army_buff_fearsome_warriors")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_nor_army_buff_beast_slayers")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_nor_army_buff_unnatural_selection")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_nor_army_buff_frostbitten")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_nor_army_buff_hail_of_teeth")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_nor_army_buff_monsters_of_the_north")
-	cm:force_add_skill(char_str_enc, "wh_main_skill_all_lord_battle_rally")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_nor_army_buff_champions_of_the_north")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_nor_army_buff_hardened_hunters")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_nor_army_buff_icy_wrath")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_nor_army_buff_hulks_of_death")
-	cm:force_add_skill(char_str_enc, "wh_dlc08_skill_nor_lord_self_chrons_wrath")
-	cm:force_add_skill(char_str_enc, "wh_dlc08_skill_nor_lord_self_fury_of_the_hound")
-	cm:force_add_skill(char_str_enc, "wh_dlc08_skill_nor_lord_self_carrier_of_death")
-	cm:force_add_skill(char_str_enc, "wh_dlc08_skill_nor_lord_self_putrefying_ooze")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_nor_army_buff_fearsome_warriors")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_nor_army_buff_beast_slayers")
-end
-if army_land_encounters_leader == "emp_lord" then
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_emp_army_buff_emperors_finest")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_emp_army_buff_speed_of_horse")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_emp_army_buff_pistolkorps")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_emp_army_buff_honest_steel")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_emp_army_buff_mighty_forge")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_emp_army_buff_imperial_gunnery")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_all_lord_self_devastating_charge")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_all_lord_self_full_plate_armour")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_all_lord_self_scarred_veteran")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_all_lord_self_deadly_blade")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_emp_army_buff_emperors_finest")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_emp_army_buff_speed_of_horse")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_emp_army_buff_pistolkorps")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_emp_army_buff_honest_steel")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_emp_army_buff_mighty_forge")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_emp_army_buff_imperial_gunnery")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_emp_army_buff_emperors_finest")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_emp_army_buff_speed_of_horse")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_emp_army_buff_pistolkorps")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_emp_army_buff_honest_steel")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_emp_army_buff_mighty_forge")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_emp_army_buff_imperial_gunnery")
-end
-if army_land_encounters_leader == "wh2_main_skv_warlord" then
-	cm:force_add_skill(char_str_enc, "wh2_main_skill_skv_army_buff_clanrats")
-	cm:force_add_skill(char_str_enc, "wh2_main_skill_skv_army_buff_runners")
-	cm:force_add_skill(char_str_enc, "wh2_main_skill_skv_army_buff_weaponteams")
-	cm:force_add_skill(char_str_enc, "wh2_main_skill_skv_army_buff_eliteinf")
-	cm:force_add_skill(char_str_enc, "wh2_main_skill_skv_army_buff_monsters")
-	cm:force_add_skill(char_str_enc, "wh2_main_skill_skv_army_buff_artillery")
-	cm:force_add_skill(char_str_enc, "wh2_main_skill_skv_combat_ruin_and_decay")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_all_lord_self_thick-skinned")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_all_lord_self_blade_master")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_all_lord_self_self_indomitable")
-	cm:force_add_skill(char_str_enc, "wh2_main_skill_skv_army_buff_clanrats")
-	cm:force_add_skill(char_str_enc, "wh2_main_skill_skv_army_buff_runners")
-	cm:force_add_skill(char_str_enc, "wh2_main_skill_skv_army_buff_weaponteams")
-	cm:force_add_skill(char_str_enc, "wh2_main_skill_skv_army_buff_eliteinf")
-	cm:force_add_skill(char_str_enc, "wh2_main_skill_skv_army_buff_monsters")
-	cm:force_add_skill(char_str_enc, "wh2_main_skill_skv_army_buff_artillery")
-	cm:force_add_skill(char_str_enc, "wh2_main_skill_skv_combat_ruin_and_decay")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_all_lord_self_thick-skinned")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_all_lord_self_blade_master")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_all_lord_self_self_indomitable")
-end
-if army_land_encounters_leader == "dlc05_wef_glade_lord" then
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_wef_army_buff_piercing_thorns")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_wef_army_buff_bolts_of_the_forest")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_wef_army_buff_striking_branches")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_wef_army_buff_swinging_boughs")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_wef_army_buff_ancient_bark")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_wef_army_buff_wings_of_the_forest")
-	cm:force_add_skill(char_str_enc, "wh_main_skill_all_all_self_foe-seeker")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_wef_lord_self_endurance_of_the_oak")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_wef_lord_self_impenetrable_bark")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_wef_lord_self_tempered_rigour")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_wef_lord_self_violent_delights")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_wef_army_buff_piercing_thorns")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_wef_army_buff_bolts_of_the_forest")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_wef_army_buff_striking_branches")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_wef_army_buff_swinging_boughs")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_wef_army_buff_ancient_bark")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_wef_army_buff_wings_of_the_forest")
-end
-if army_land_encounters_leader == "wh2_main_def_dreadlord" then
-	cm:force_add_skill(char_str_enc, "wh2_main_skill_def_army_buff_basic_infantry")
-	cm:force_add_skill(char_str_enc, "wh2_main_skill_def_army_buff_missile")
-	cm:force_add_skill(char_str_enc, "wh2_main_skill_def_army_buff_shades_riders")
-	cm:force_add_skill(char_str_enc, "wh2_main_skill_def_army_buff_beasts")
-	cm:force_add_skill(char_str_enc, "wh2_main_skill_def_army_buff_coldones")
-	cm:force_add_skill(char_str_enc, "wh2_main_skill_def_army_buff_elites")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_all_lord_self_devastating_charge")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_all_lord_self_deadeye")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_all_lord_self_blade_master")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_all_lord_self_self_indomitable")
-	cm:force_add_skill(char_str_enc, "wh2_main_skill_def_army_buff_basic_infantry")
-	cm:force_add_skill(char_str_enc, "wh2_main_skill_def_army_buff_missile")
-	cm:force_add_skill(char_str_enc, "wh2_main_skill_def_army_buff_shades_riders")
-	cm:force_add_skill(char_str_enc, "wh2_main_skill_def_army_buff_beasts")
-	cm:force_add_skill(char_str_enc, "wh2_main_skill_def_army_buff_coldones")
-	cm:force_add_skill(char_str_enc, "wh2_main_skill_def_army_buff_elites")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_all_lord_self_devastating_charge")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_all_lord_self_deadeye")
-end
-if army_land_encounters_leader == "grn_orc_warboss" then
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_grn_army_buff_da_gobbos")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_grn_army_buff_riderz")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_grn_army_buff_da_boyz")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_grn_army_buff_ard_as_nailz")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_grn_army_buff_da_big_ladz")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_grn_army_buff_deff_from_abuv")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_all_lord_self_devastating_charge")
-	cm:force_add_skill(char_str_enc, "wh_main_skill_grn_lord_self_choppas")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_all_lord_self_scarred_veteran")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_all_lord_self_deadly_blade")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_grn_army_buff_da_gobbos")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_grn_army_buff_riderz")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_grn_army_buff_da_boyz")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_grn_army_buff_ard_as_nailz")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_grn_army_buff_da_big_ladz")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_grn_army_buff_deff_from_abuv")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_all_lord_self_devastating_charge")
-	cm:force_add_skill(char_str_enc, "wh_main_skill_grn_lord_self_choppas")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_all_lord_self_scarred_veteran")
-	cm:force_add_skill(char_str_enc, "wh2_dlc11_skill_all_lord_self_deadly_blade")
-end
-end
 
 --generate encounter pirates
 function land_GenerateEncounterPirate(character, loc, unit)
@@ -1023,7 +877,6 @@ out("starting land_GenerateEncounterPirate!")
 			local force_leader = self:get_general();
 			levels_for_land_encounters(force_leader)
 			cm:callback(function() skills_for_land_encounters(force_leader) end, 0.1)
-			cm:callback(function() skills_for_land_encounters_second_tier(force_leader) end, 0.2)
 			
 			cm:scroll_camera_from_current(false, 6, {force_leader:display_position_x(), force_leader:display_position_y(), 14.768, 0.0, 12.0});
 			
