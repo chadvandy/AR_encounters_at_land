@@ -346,7 +346,7 @@ end;
 
 core:add_listener(
 	"faction_turn_start_populate_land_spots",
-	"FactionTurnEnd",
+	"FactionTurnStart",
 	true,
 	function(context)
 		local turn_number = cm:model():turn_number();
