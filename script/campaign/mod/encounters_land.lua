@@ -127,8 +127,6 @@ local land_encounter_events_details = {
 
 local encounter_pirate_faction = "wh2_main_rogue_gerhardts_mercenaries_qb1";
 
-local alternative_encounter_pirate_faction = "wh2_main_def_dark_elves_qb1";
-
 local land_encounter_listener_info = {false, false, false, "", "", "", ""};
 
 local encounter_land_spots = {};
