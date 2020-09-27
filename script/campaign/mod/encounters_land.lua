@@ -172,6 +172,48 @@ local land_encounter_effect_keys = {
 	}
 };
 
+--bandit armies
+local function land_declare_armies()
+	local force_key = "encounter_force_bandits"
+	random_army_manager:remove_force(force_key)
+
+	cm:callback(function() 
+		local bandit_army_roll = cm:random_number(6)
+		--out("Next army will be "..bandit_army_roll)
+
+		local bandit_force = bandit_forces[bandit_army_roll]
+
+		local lord_key = bandit_force.lord
+		local mandatory_units_table = bandit_force.mandatory_units
+		local single_weight_table = bandit_force.single_weight
+		local double_weight_table = bandit_force.double_weight
+
+		random_army_manager:new_force(force_key);
+
+		for i = 1, #mandatory_units_table do
+			local key = mandatory_units_table[i]
+
+			random_army_manager:add_mandatory_unit(force_key, key, 2)
+		end
+
+		for i = 1, #single_weight_table do
+			local key = single_weight_table[i]
+
+			random_army_manager:add_unit(force_key, key, 1)
+		end
+
+		for i = 1, #double_weight_table do
+			local key = double_weight_table[i]
+
+			random_army_manager:add_unit(force_key, key, 2)
+		end
+
+		army_land_encounters_leader = lord_key
+		local name_value = math.random(1,#bandit_names)
+		bandit_name_land_encounters = bandit_names[name_value]
+	end, 0.1)
+end
+
 function renew_effect_bundle(char_cqi, effect_bundle)
 	cm:remove_effect_bundle_from_force(effect_bundle, char_cqi);
 	cm:apply_effect_bundle_to_force(effect_bundle, char_cqi, encounter_effect_length);
@@ -397,7 +439,7 @@ function land_TriggerEncounterIncident(faction, incident)
 	end
 end
 
-
+-- TODO make the conditional betterer
 core:add_listener(
 	"dilemma_choice_made_event_trigger_counter_at_land_incident",
 	"DilemmaChoiceMadeEvent",
@@ -749,48 +791,6 @@ local function land_ReconstructListeners()
 	end
 end
 
---bandit armies
-local function land_declare_armies()
-	local force_key = "encounter_force_bandits"
-	random_army_manager:remove_force(force_key)
-
-	cm:callback(function() 
-		local bandit_army_roll = cm:random_number(6)
-		--out("Next army will be "..bandit_army_roll)
-
-		local bandit_force = bandit_forces[bandit_army_roll]
-
-		local lord_key = bandit_force.lord
-		local mandatory_units_table = bandit_force.mandatory_units
-		local single_weight_table = bandit_force.single_weight
-		local double_weight_table = bandit_force.double_weight
-
-		random_army_manager:new_force(force_key);
-
-		for i = 1, #mandatory_units_table do
-			local key = mandatory_units_table[i]
-
-			random_army_manager:add_mandatory_unit(force_key, key, 2)
-		end
-
-		for i = 1, #single_weight_table do
-			local key = single_weight_table[i]
-
-			random_army_manager:add_unit(force_key, key, 1)
-		end
-
-		for i = 1, #double_weight_table do
-			local key = double_weight_table[i]
-
-			random_army_manager:add_unit(force_key, key, 2)
-		end
-
-		army_land_encounters_leader = lord_key
-		local name_value = math.random(1,#bandit_names)
-		bandit_name_land_encounters = bandit_names[name_value]
-	end, 0.1)
-end
-
 local function levels_for_land_encounters(force_leader)
 	local char_str_enc = cm:char_lookup_str(force_leader:command_queue_index());
 	local turn = cm:model():turn_number()
@@ -982,7 +982,7 @@ core:add_listener(
 	true
 );
 
-core:add_listener(
+--[[core:add_listener(
 	"remove_enc_select_land",
 	"CharacterSelected",
 	true,
@@ -990,4 +990,4 @@ core:add_listener(
 		random_army_manager:remove_force("encounter_force_bandits")
 	end,
 	true
-);
+);]]
