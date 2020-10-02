@@ -8,8 +8,6 @@ local bandit_lord_skills = require("script/land_encounters/bandit_lord_skills")
 local army_land_encounters_leader = ""
 local bandit_name_land_encounters = ""
 
-local land_encounter_starting_faction = "";
-
 local land_encounter_events = {
 	["treasure"] = {
 		"wh2_main_incident_encounter_at_land_1",
@@ -133,9 +131,11 @@ local encounter_land_spots = {};
 
 local land_encounter_turn_recorder = 0;
 
+-- this is multiplied by the total number of spot locations, to determine how many land encounters are created every 5 turns
 local encounter_number_per_turn = 0.03;
 
-local encounter_number_start = 0.17;
+-- this is multiplied by the total number of spot locations, to determine how many land encounters are defined on a new campaign
+local encounter_number_start = 0.05; -- OG is 0.17 -- TODO make MCT-able
 
 local encounter_number_treasure = 0.3;
 
@@ -170,7 +170,7 @@ local land_encounter_effect_keys = {
 	}
 };
 
---bandit armies
+-- declare the bandit army in the random army manager
 local function land_declare_armies()
 	local force_key = "encounter_force_bandits"
 	random_army_manager:remove_force(force_key)
@@ -212,126 +212,63 @@ local function land_declare_armies()
 	end, 0.1)
 end
 
-function renew_effect_bundle(char_cqi, effect_bundle)
+-- kills the encounter army post-battle; triggers next FactionTurnStart
+local function land_SetupEncounterForceRemoval()
+	core:add_listener(
+	"Pirate_encounter_removal_land",
+	"FactionTurnStart",
+	true, -- TODO better way to do this?
+	function(context)
+		local im = invasion_manager;
+		local evasion = im:get_invasion("land_encounter_invasion");
+		if evasion ~= nil then
+
+			-- disable the events (for "Faction Destroyed" and stuff)
+			cm:disable_event_feed_events(true, "","","diplomacy_faction_destroyed");
+			cm:disable_event_feed_events(true, "wh_event_category_character", "", "");
+
+			-- kill the army & faction
+			evasion:kill();
+
+			-- reenable the events
+			cm:callback(function() 
+				cm:disable_event_feed_events(false, "","","diplomacy_faction_destroyed") 
+				cm:disable_event_feed_events(false, "wh_event_category_character", "", "") 
+			end, 1);
+		end;
+
+		land_encounter_listener_info[2] = false;
+	end,
+	false
+	);
+end
+
+local function renew_effect_bundle(char_cqi, effect_bundle)
 	cm:remove_effect_bundle_from_force(effect_bundle, char_cqi);
 	cm:apply_effect_bundle_to_force(effect_bundle, char_cqi, encounter_effect_length);
 end;
 
-function land_get_available_encounter_spots()
-out("getting available spots");
+local function land_get_available_encounter_spots()
 	local land_available_spots = {};
-out("ecounter_land_spots are");
-out(#encounter_land_spots);
+
 	if #encounter_land_spots > 0 then
-out("encounter_land_spots are over 0, proceeding!");
+		-- out("encounter_land_spots are over 0, proceeding!");
 		for i = 1,#encounter_land_spots do
+			-- add any non-occupied land spots to the land_available_spots table
 			if encounter_land_spots[i]["cd"] == 0 and encounter_land_spots[i]["occupied"] == "not" then
 				table.insert(land_available_spots, encounter_land_spots[i]["index"]);
-out("inserted a record from encounter land to available spots!");
+				--out("inserted a record from encounter land to available spots!");
 			end;
 		end;
-		return land_available_spots;
-	else
-		return false;
+	--else
+	--	return false;
 	end;
+
+	-- always return the table (it'll be empty if there are no available)
+	return land_available_spots
 end;
 
-function populate_land_spots(category, land_number_of_spots)
-	local land_available_spots = land_get_available_encounter_spots();
-out("land_number_of_spots is")
-out(land_number_of_spots)
-	if land_number_of_spots > 0 and #land_available_spots >= land_number_of_spots then
-out("number_of_posts is over 0 and land_available_spots are higher than them!");
-		for i = 1,land_number_of_spots do
-			local index = cm:random_number(#land_available_spots);
-out("index is");
-out(index);
-			local land_event_key = land_encounter_events[category][cm:random_number(#land_encounter_events[category])];
-out("event key is");
-out(land_event_key);
-			local model_index = land_encounter_events_details[land_event_key]["model"][cm:random_number(#land_encounter_events_details[land_event_key]["model"])];
-out("model index is");
-out(model_index);
-			
-			encounter_land_spots[land_available_spots[index]]["occupied"] = category;
-
-			local display_marker_x, display_marker_y = campaign_manager:log_to_dis(encounter_land_spots[land_available_spots[index]]["location"][1], encounter_land_spots[land_available_spots[index]]["location"][2])
-			
-			--vortex markers
-			if cm:model():campaign_name("wh2_main_great_vortex") then
-				--southlands markers
-				if encounter_land_spots[land_available_spots[index]]["location"][1] > 374 and encounter_land_spots[land_available_spots[index]]["location"][2] < 370 then
-				cm:add_interactable_campaign_marker("land_test_marker_" .. encounter_land_spots[land_available_spots[index]]["index"], "southlands_encounter_marker", encounter_land_spots[land_available_spots[index]]["location"][1], encounter_land_spots[land_available_spots[index]]["location"][2], 4, "", "");
-				--lustria markers
-				elseif encounter_land_spots[land_available_spots[index]]["location"][1] < 374 and encounter_land_spots[land_available_spots[index]]["location"][2] < 425 then
-				cm:add_interactable_campaign_marker("land_test_marker_" .. encounter_land_spots[land_available_spots[index]]["index"], "lustria_encounter_marker", encounter_land_spots[land_available_spots[index]]["location"][1], encounter_land_spots[land_available_spots[index]]["location"][2], 4, "", "");
-				--ulthuan markers
-				elseif encounter_land_spots[land_available_spots[index]]["location"][1] > 380 and encounter_land_spots[land_available_spots[index]]["location"][1] < 690 and encounter_land_spots[land_available_spots[index]]["location"][2] > 385 and encounter_land_spots[land_available_spots[index]]["location"][2] < 645 then
-				cm:add_interactable_campaign_marker("land_test_marker_" .. encounter_land_spots[land_available_spots[index]]["index"], "ulthuan_encounter_marker", encounter_land_spots[land_available_spots[index]]["location"][1], encounter_land_spots[land_available_spots[index]]["location"][2], 4, "", "");
-				--naggaroth markers
-				elseif encounter_land_spots[land_available_spots[index]]["location"][1] < 377 and encounter_land_spots[land_available_spots[index]]["location"][2] > 425 then
-				cm:add_interactable_campaign_marker("land_test_marker_" .. encounter_land_spots[land_available_spots[index]]["index"], "naggaroth_encounter_marker", encounter_land_spots[land_available_spots[index]]["location"][1], encounter_land_spots[land_available_spots[index]]["location"][2], 4, "", "");
-				else
-				cm:add_interactable_campaign_marker("land_test_marker_" .. encounter_land_spots[land_available_spots[index]]["index"], "norsca_encounter_marker", encounter_land_spots[land_available_spots[index]]["location"][1], encounter_land_spots[land_available_spots[index]]["location"][2], 4, "", "");
-				end
-				
-			end;
-			--mortal empires markers
-			if cm:model():campaign_name("main_warhammer") then
-				--southlands markers
-				if encounter_land_spots[land_available_spots[index]]["location"][1] > 320 and encounter_land_spots[land_available_spots[index]]["location"][2] < 150 then
-				cm:add_interactable_campaign_marker("land_test_marker_" .. encounter_land_spots[land_available_spots[index]]["index"], "southlands_encounter_marker", encounter_land_spots[land_available_spots[index]]["location"][1], encounter_land_spots[land_available_spots[index]]["location"][2], 4, "", "");
-				--badlands markers
-				elseif (encounter_land_spots[land_available_spots[index]]["location"][1] > 517 and encounter_land_spots[land_available_spots[index]]["location"][2] < 206 and encounter_land_spots[land_available_spots[index]]["location"][2] > 150) or 
-				(encounter_land_spots[land_available_spots[index]]["location"][1] > 542 and encounter_land_spots[land_available_spots[index]]["location"][2] < 236 and encounter_land_spots[land_available_spots[index]]["location"][2] > 206) or
-				(encounter_land_spots[land_available_spots[index]]["location"][1] > 565 and encounter_land_spots[land_available_spots[index]]["location"][2] < 283 and encounter_land_spots[land_available_spots[index]]["location"][2] > 236) or
-				(encounter_land_spots[land_available_spots[index]]["location"][1] > 590 and encounter_land_spots[land_available_spots[index]]["location"][2] < 337 and encounter_land_spots[land_available_spots[index]]["location"][2] > 283) or
-				(encounter_land_spots[land_available_spots[index]]["location"][1] > 780 and encounter_land_spots[land_available_spots[index]]["location"][2] < 524 and encounter_land_spots[land_available_spots[index]]["location"][2] > 337) then
-				cm:add_interactable_campaign_marker("land_test_marker_" .. encounter_land_spots[land_available_spots[index]]["index"], "badlands_encounter_marker", encounter_land_spots[land_available_spots[index]]["location"][1], encounter_land_spots[land_available_spots[index]]["location"][2], 4, "", "");
-				--lustria markers
-				elseif (encounter_land_spots[land_available_spots[index]]["location"][1] < 320 and encounter_land_spots[land_available_spots[index]]["location"][2] < 250) or
-				(encounter_land_spots[land_available_spots[index]]["location"][1] < 125 and encounter_land_spots[land_available_spots[index]]["location"][2] < 350) then
-				cm:add_interactable_campaign_marker("land_test_marker_" .. encounter_land_spots[land_available_spots[index]]["index"], "lustria_encounter_marker", encounter_land_spots[land_available_spots[index]]["location"][1], encounter_land_spots[land_available_spots[index]]["location"][2], 4, "", "");
-				--naggaroth markers
-				elseif (encounter_land_spots[land_available_spots[index]]["location"][1] < 125 and encounter_land_spots[land_available_spots[index]]["location"][2] > 250 and encounter_land_spots[land_available_spots[index]]["location"][2] < 670) or
-				(encounter_land_spots[land_available_spots[index]]["location"][1] < 290 and encounter_land_spots[land_available_spots[index]]["location"][2] > 460 and encounter_land_spots[land_available_spots[index]]["location"][2] < 670) then
-				cm:add_interactable_campaign_marker("land_test_marker_" .. encounter_land_spots[land_available_spots[index]]["index"], "naggaroth_encounter_marker", encounter_land_spots[land_available_spots[index]]["location"][1], encounter_land_spots[land_available_spots[index]]["location"][2], 4, "", "");
-				--ulthuan markers
-				elseif encounter_land_spots[land_available_spots[index]]["location"][1] > 125 and encounter_land_spots[land_available_spots[index]]["location"][1] < 320 and encounter_land_spots[land_available_spots[index]]["location"][2] > 250 and encounter_land_spots[land_available_spots[index]]["location"][2] < 460 then
-				cm:add_interactable_campaign_marker("land_test_marker_" .. encounter_land_spots[land_available_spots[index]]["index"], "ulthuan_encounter_marker", encounter_land_spots[land_available_spots[index]]["location"][1], encounter_land_spots[land_available_spots[index]]["location"][2], 4, "", "");
-				--norsca markers
-				elseif (encounter_land_spots[land_available_spots[index]]["location"][1] > 1 and encounter_land_spots[land_available_spots[index]]["location"][2] > 670) or 
-				(encounter_land_spots[land_available_spots[index]]["location"][1] > 290 and encounter_land_spots[land_available_spots[index]]["location"][1] < 415 and encounter_land_spots[land_available_spots[index]]["location"][2] > 520) or
-				(encounter_land_spots[land_available_spots[index]]["location"][1] > 415 and encounter_land_spots[land_available_spots[index]]["location"][2] > 574) then
-				cm:add_interactable_campaign_marker("land_test_marker_" .. encounter_land_spots[land_available_spots[index]]["index"], "norsca_encounter_marker", encounter_land_spots[land_available_spots[index]]["location"][1], encounter_land_spots[land_available_spots[index]]["location"][2], 4, "", "");
-				--dwarf markers
-				elseif (encounter_land_spots[land_available_spots[index]]["location"][1] > 569 and encounter_land_spots[land_available_spots[index]]["location"][1] < 618 and encounter_land_spots[land_available_spots[index]]["location"][2] > 344 and encounter_land_spots[land_available_spots[index]]["location"][2] < 364) or
-				(encounter_land_spots[land_available_spots[index]]["location"][1] > 641 and encounter_land_spots[land_available_spots[index]]["location"][1] < 780 and encounter_land_spots[land_available_spots[index]]["location"][2] > 338 and encounter_land_spots[land_available_spots[index]]["location"][2] < 387) or
-				(encounter_land_spots[land_available_spots[index]]["location"][1] > 700 and encounter_land_spots[land_available_spots[index]]["location"][1] < 779 and encounter_land_spots[land_available_spots[index]]["location"][2] > 387 and encounter_land_spots[land_available_spots[index]]["location"][2] < 508) or
-				(encounter_land_spots[land_available_spots[index]]["location"][1] > 463 and encounter_land_spots[land_available_spots[index]]["location"][1] < 506 and encounter_land_spots[land_available_spots[index]]["location"][2] > 393 and encounter_land_spots[land_available_spots[index]]["location"][2] < 404) or
-				(encounter_land_spots[land_available_spots[index]]["location"][1] > 508 and encounter_land_spots[land_available_spots[index]]["location"][1] < 581 and encounter_land_spots[land_available_spots[index]]["location"][2] > 340 and encounter_land_spots[land_available_spots[index]]["location"][2] < 378) then
-				cm:add_interactable_campaign_marker("land_test_marker_" .. encounter_land_spots[land_available_spots[index]]["index"], "dwarf_encounter_marker", encounter_land_spots[land_available_spots[index]]["location"][1], encounter_land_spots[land_available_spots[index]]["location"][2], 4, "", "");
-				else
-				cm:add_interactable_campaign_marker("land_test_marker_" .. encounter_land_spots[land_available_spots[index]]["index"], "encounter_marker_" .. tostring(model_index), encounter_land_spots[land_available_spots[index]]["location"][1], encounter_land_spots[land_available_spots[index]]["location"][2], 4, "", "");
-			end;
-			end
-			
-			
-out("marker set!")	
-			encounter_land_spots[land_available_spots[index]]["model"] = model_index;
-			
-			if #land_encounter_events_details[land_event_key]["variation"] == 0 then
-				encounter_land_spots[land_available_spots[index]]["event"] = land_event_key;
-			else
-				encounter_land_spots[land_available_spots[index]]["event"] = land_event_key .. land_encounter_events_details[land_event_key]["variation"][cm:random_number(#land_encounter_events_details[land_event_key]["variation"])];
-			end;
-			
-			table.remove(land_available_spots, index);
-		end;
-	end;
-end;
-
-function land_get_number_of_occupied_spots_with_category(category)
+local function land_get_number_of_occupied_spots_with_category(category)
 	local counter = 0;
 	
 	for i = 1, #encounter_land_spots do
@@ -344,62 +281,122 @@ function land_get_number_of_occupied_spots_with_category(category)
 end;
 
 
-core:add_listener(
-	"faction_turn_start_populate_land_spots",
-	"FactionTurnStart",
-	true,
-	function(context)
-		local turn_number = cm:model():turn_number();
-		if land_encounter_turn_recorder == 0 then
-			local campaign_key = "";
-			
-			if cm:model():campaign_name("main_warhammer") then
-				chosen_coordinate_set = encounter_land_location_set;
-			elseif cm:model():campaign_name("wh2_main_great_vortex") then
-				chosen_coordinate_set = vortex_encounter_land_location_set;
-			else
-				script_error("ERROR: Trying to set encounters at land, but could not find the campaign name!");
-				return;
-			end;
-out("encounter_land_location_set are");
-out(#encounter_land_location_set);
-			for i = 1, #chosen_coordinate_set do
-				local spot = {
-					["index"] = i,
-					["location"] = chosen_coordinate_set[i],
-					["occupied"] = "not",
-					["cd"] = 0
-				};			
-				table.insert(encounter_land_spots, spot);
-out("inserted a record from encounter_land_location_set to encounter_land_spots!");
-			end;
-			
-			populate_land_spots("treasure", math.floor(encounter_number_start * #encounter_land_spots));
-out("marker set!1")
-			populate_land_spots("marker", math.floor(encounter_number_start * #encounter_land_spots));
-out("marker set!2")			
-			land_encounter_starting_faction = context:faction():name();
-		elseif turn_number ~= land_encounter_turn_recorder and turn_number % encounter_spawn_interval ==0 then
-			for i = 1, #encounter_land_spots do
-				if encounter_land_spots[i]["cd"] > 0 then
-					encounter_land_spots[i]["cd"] = encounter_land_spots[i]["cd"] - 1;
-				end;
-			end;
-			
-			if land_get_number_of_occupied_spots_with_category("treasure") < math.floor(encounter_number_treasure * #encounter_land_spots) then
-				populate_land_spots("treasure",  math.floor(encounter_number_per_turn * #encounter_land_spots));
-out("marker set!3")
-			end;
-			
-			populate_land_spots("marker", math.floor(encounter_number_per_turn * #encounter_land_spots));
-out("marker set!4")
-		end;
-		
-		land_encounter_turn_recorder = turn_number;
-	end,
-	true
-);
+local function populate_land_spots(category, land_number_of_spots)
+	local land_available_spots = land_get_available_encounter_spots();
 
+	if land_number_of_spots > 0 and #land_available_spots >= land_number_of_spots then
+		--out("number_of_posts is over 0 and land_available_spots are higher than them!");
+		for i = 1,land_number_of_spots do
+			local index = cm:random_number(#land_available_spots);
+
+			local land_spot = encounter_land_spots[land_available_spots[index]]
+			local spot_x,spot_y = land_spot["location"][1], land_spot["location"][2]
+			land_spot["occupied"] = category
+
+			local land_spot_index = land_spot["index"]
+
+			local land_event_key = land_encounter_events[category][cm:random_number(#land_encounter_events[category])];
+			local model_index = land_encounter_events_details[land_event_key]["model"][cm:random_number(#land_encounter_events_details[land_event_key]["model"])];
+
+			local marker_key = ""
+
+			land_spot["model"] = model_index;
+
+			if #land_encounter_events_details[land_event_key]["variation"] == 0 then
+				land_spot["event"] = land_event_key;
+			else
+				land_spot["event"] = land_event_key .. land_encounter_events_details[land_event_key]["variation"][cm:random_number(#land_encounter_events_details[land_event_key]["variation"])];
+			end;
+			
+			--vortex markers
+			if cm:model():campaign_name("wh2_main_great_vortex") then
+				--southlands markers
+				if spot_x > 374 and spot_y < 370 then
+					marker_key = "southlands_encounter_marker"
+				--lustria markers
+				elseif spot_x < 374 and spot_y < 425 then
+					marker_key = "lustria_encounter_marker"
+				--ulthuan markers
+				elseif spot_x > 380 and spot_x < 690 and spot_y > 385 and spot_y < 645 then
+					marker_key = "ulthuan_encounter_marker"
+				--naggaroth markers
+				elseif spot_x < 377 and spot_y > 425 then
+					marker_key = "naggaroth_encounter_marker"
+				else -- default to Norsca (?) -- TODO should I?
+					marker_key = "norsca_encounter_marker"
+				end
+			end;
+			--mortal empires markers
+			if cm:model():campaign_name("main_warhammer") then
+
+				--- Southlands ---
+				if spot_x > 320 and spot_y < 150 then
+					marker_key = "southlands_encounter_marker"
+
+				--- Badlands ---
+				elseif 
+					(spot_x > 517 and spot_y < 206 and spot_y > 150) or 
+					(spot_x > 542 and spot_y < 236 and spot_y > 206) or
+					(spot_x > 565 and spot_y < 283 and spot_y > 236) or
+					(spot_x > 590 and spot_y < 337 and spot_y > 283) or
+					(spot_x > 780 and spot_y < 524 and spot_y > 337) 
+				then
+					marker_key = "badlands_encounter_marker"
+
+				--- Lustria ---
+				elseif 
+					(spot_x < 320 and spot_y < 250) or
+					(spot_x < 125 and spot_y < 350) 
+				then
+					marker_key = "lustria_encounter_marker"
+
+				--- Naggaroth ---
+				elseif 
+					(spot_x < 125 and spot_y > 250 and spot_y < 670) or
+					(spot_x < 290 and spot_y > 460 and spot_y < 670) 
+				then
+					marker_key = "naggaroth_encounter_marker"
+
+				--- Ulthuan ---
+				elseif spot_x > 125 and spot_x < 320 and spot_y > 250 and spot_y < 460 then
+					marker_key = "ulthuan_encounter_marker"
+
+				--- Norsca ---
+				elseif 
+					(spot_x > 1 and spot_y > 670) or 
+					(spot_x > 290 and spot_x < 415 and spot_y > 520) or
+					(spot_x > 415 and spot_y > 574)
+				then
+					marker_key = "norsca_encounter_marker"
+
+				--- Dwarfs ---
+				elseif 
+					(spot_x > 569 and spot_x < 618 and spot_y > 344 and spot_y < 364) or
+					(spot_x > 641 and spot_x < 780 and spot_y > 338 and spot_y < 387) or
+					(spot_x > 700 and spot_x < 779 and spot_y > 387 and spot_y < 508) or
+					(spot_x > 463 and spot_x < 506 and spot_y > 393 and spot_y < 404) or
+					(spot_x > 508 and spot_x < 581 and spot_y > 340 and spot_y < 378) 
+				then
+					marker_key = "dwarf_encounter_marker"
+
+				--- Default ---
+				else
+					marker_key = "encounter_marker_"..tostring(model_index)
+				end;
+			end
+
+			if marker_key == "" then
+				-- issue!
+				return
+			end
+
+			cm:add_interactable_campaign_marker("land_test_marker_" .. land_spot_index, marker_key, spot_x, spot_y, 4, "", "");
+		
+			
+			table.remove(land_available_spots, index);
+		end; -- end loop
+	end;
+end;
 
 function land_TriggerEncounterIncident(faction, incident)
 	out("triggered encounter incident");
@@ -437,76 +434,6 @@ function land_TriggerEncounterIncident(faction, incident)
 	end
 end
 
--- TODO make the conditional betterer
-core:add_listener(
-	"dilemma_choice_made_event_trigger_counter_at_land_incident",
-	"DilemmaChoiceMadeEvent",
-	true,
-	function(context)
-		local choice = context:choice();
-		local dilemma = context:dilemma();
-		local whose_turn_is_it_name = cm:model():world():whose_turn_is_it():name();
-		local whose_turn_is_it = cm:model():world():whose_turn_is_it();
-		
-		out("encounter_target is"..encounter_target);
-		--for old timie dilemmas
-		for i = 1, #land_encounter_events["marker"] do
-			if #land_encounter_events_details[land_encounter_events["marker"][i]]["variation"] == 0 then
-				if dilemma == land_encounter_events["marker"][i] then
-					local land_event_key = land_encounter_events["marker"][i];
-					local payload_index = choice + 1;
-					
-					if #land_encounter_events_details[land_event_key]["payloads"][payload_index] > 0 then
-						local rand_number = cm:random_number(#land_encounter_events_details[land_event_key]["payloads"][payload_index]);
-						
-						renew_effect_bundle(encounter_target, land_encounter_events_details[land_event_key]["payloads"][payload_index][rand_number]);
-						cm:trigger_incident(whose_turn_is_it_name, land_encounter_events_details[land_event_key]["payloads"][payload_index][rand_number], true);
-					end;
-				end;
-			else
-				for j = 1, #land_encounter_events_details[land_encounter_events["marker"][i]]["variation"] do
-					if dilemma == land_encounter_events["marker"][i]..land_encounter_events_details[land_encounter_events["marker"][i]]["variation"][j] then
-						local land_event_key = land_encounter_events["marker"][i];
-						local payload_index = choice + 1;
-						
-						if #land_encounter_events_details[land_event_key]["payloads"][payload_index] > 0 then
-							local rand_number = cm:random_number(#land_encounter_events_details[land_event_key]["payloads"][payload_index]);
-							
-							renew_effect_bundle(encounter_target, land_encounter_events_details[land_event_key]["payloads"][payload_index][rand_number]);
-							land_TriggerEncounterIncident(cm:model():world():whose_turn_is_it(), land_encounter_events_details[land_event_key]["payloads"][payload_index][rand_number]);
-						end;
-					end;
-				end;
-			end;
-		end;
-		
-		--for neo dilemmas
-		for i = 1, #land_neo_counters_list do
-			if dilemma == land_neo_counters_list[i] then
-				if choice == 0 then
-					if land_neo_counters[land_encounter_listener_info[7]][2] >= cm:random_number(100) then					
-						local x, y = cm:find_valid_spawn_location_for_character_from_position(cm:model():world():whose_turn_is_it():name(), temp_loc[1], temp_loc[2], false);
-						
-						land_GenerateEncounterPirate(temp_char, {x, y}, land_neo_counters[land_encounter_listener_info[7]][3]);
-						land_SetupEncounterPostbattle(land_encounter_listener_info[7], whose_turn_is_it);
-					else
-						land_TriggerEncounterIncident(whose_turn_is_it, land_encounter_listener_info[7]);
-						land_encounter_listener_info[3] = false;
-						land_encounter_listener_info[6] = "";
-						land_encounter_listener_info[7] = "";
-					end
-				else
-					land_TriggerEncounterIncident(whose_turn_is_it, land_neo_counters[land_encounter_listener_info[7]][6]);
-					land_encounter_listener_info[3] = false;
-					land_encounter_listener_info[6] = "";
-					land_encounter_listener_info[7] = "";
-				end
-			end
-		end
-	end,
-	true
-);
-
 function land_Remodulate(vector, desired_mag)
 	local mag = math.sqrt(vector[1] * vector[1] + vector[2] * vector[2]);
 	local result_vector = {0,0};
@@ -520,107 +447,8 @@ function land_Remodulate(vector, desired_mag)
 	return result_vector; 
 end
 
-core:add_listener(
-	"incident_event_encounter_at_land_add_agent_experience",
-	"IncidentEvent",
-	true,
-	function(context)
-		local incident = context:dilemma();
-		
-		if incident == "wh2_main_incident_encounter_at_land_1_b" or incident == "wh2_main_incident_encounter_at_land_2_b" or incident == "wh2_main_incident_encounter_at_land_3_b" then
-			cm:add_agent_experience(cm:char_lookup_str(encounter_target), 1500);
-		end;
-	end,
-	true
-);
 
-core:add_listener(
-	"incident_occurred_event_encounter_at_land_remove_effect_bundle",
-	"IncidentOccuredEvent",
-	true,
-	function(context)
-		local incident = context:dilemma();
-		local whose_turn_is_it_name = cm:model():world():whose_turn_is_it():name();
-		
-		cm:callback(function()
-			for i = 1, #land_encounter_effect_keys["combat"] do
-				if incident == land_encounter_effect_keys["combat"][i] then
-					cm:remove_effect_bundle(incident .. "_dummy", whose_turn_is_it_name);
-				end;
-			end;	
-			for i = 1, #land_encounter_effect_keys["campaign"] do
-				if incident == land_encounter_effect_keys["campaign"][i] then
-					cm:remove_effect_bundle(incident .. "_dummy", whose_turn_is_it_name);
-				end;
-			end;
-		end, 0.5);
-	end,
-	true
-);
-out("test2")
-
-core:add_listener(
-	"area_entered_trigger_encounter_at_land",
-	"AreaEntered",
-	true,
-	function(context)
-		local index = tonumber(string.sub(context:area_key(), 18));
-		local area_key = context:area_key()
-		local character = context:character();
-		local faction = character:faction();
-		local faction_name = faction:name();
-		if cm:char_is_general_with_army(character) and string.find(area_key, "land") then
-			land_declare_armies()
-			land_TriggerEncounter(index, context);
-		end;
-	end,
-	true
-);
-
-core:add_listener(
-	"pending_battle_trigger_encounter_at_land_ui_lock",
-	"PendingBattle",
-	true,
-	function(context)
-out("pending battle listener triggered!")
-		local found_encounter_faction = false; 
-		
-		if cm:pending_battle_cache_num_attackers() >= 1 then
-			for i = 1, cm:pending_battle_cache_num_attackers() do
-				local this_char_cqi, this_mf_cqi, current_faction_name = cm:pending_battle_cache_get_attacker(i);
-				if current_faction_name == encounter_pirate_faction then
-					found_encounter_faction = true;
-				end
-			end
-		end		
-		if cm:pending_battle_cache_num_defenders() >= 1 then
-			for i = 1, cm:pending_battle_cache_num_defenders() do
-				local this_char_cqi, this_mf_cqi, current_faction_name = cm:pending_battle_cache_get_defender(i);
-				if current_faction_name == encounter_pirate_faction then
-					found_encounter_faction = true;
-				end
-			end
-		end
-		
-		if found_encounter_faction == true then
-out("its the bandits, locking the UI!")
-			local uim = cm:get_campaign_ui_manager();
-			uim:override("retreat"):lock();
-			cm:disable_event_feed_events(true, "","","diplomacy_faction_destroyed");
-			cm:disable_event_feed_events(true, "wh_event_category_character", "", "");
-		elseif found_encounter_faction ~= true and land_encounter_listener_info[3] then
-			local uim = cm:get_campaign_ui_manager();
-			uim:override("retreat"):unlock();
-			land_encounter_listener_info[3] = false;
-			land_encounter_listener_info[6] = "";
-			land_encounter_listener_info[7] = "";
-		end
-out("pending battle listener ending")
-	end,
-	true
-);
-
-function land_TriggerEncounter(index, context)
+local function land_TriggerEncounter(index, context)
 	local character = context:character();
 	local faction = character:faction();
 	local faction_name = faction:name();
@@ -918,34 +746,244 @@ out(land_encounter_listener_info[6])
 out(land_encounter_listener_info[7])
 end
 
-function land_SetupEncounterForceRemoval()
-	core:add_listener(
-	"Pirate_encounter_removal_land",
-	"FactionTurnStart", 
+---- The Listener Zone ----
+
+-- TODO make the conditional betterer
+core:add_listener(
+	"dilemma_choice_made_event_trigger_counter_at_land_incident",
+	"DilemmaChoiceMadeEvent",
 	true,
 	function(context)
-out("starting land_SetupEncounterForceRemoval!")
-		local im = invasion_manager;
-		local evasion = im:get_invasion("land_encounter_invasion");
-		if evasion ~= nil then
-out("evasion is nil so killing it at encounter removal!")
+		local choice = context:choice();
+		local dilemma = context:dilemma();
+		local whose_turn_is_it_name = cm:model():world():whose_turn_is_it():name();
+		local whose_turn_is_it = cm:model():world():whose_turn_is_it();
+		
+		out("encounter_target is"..encounter_target);
+		--for old timie dilemmas
+		for i = 1, #land_encounter_events["marker"] do
+			if #land_encounter_events_details[land_encounter_events["marker"][i]]["variation"] == 0 then
+				if dilemma == land_encounter_events["marker"][i] then
+					local land_event_key = land_encounter_events["marker"][i];
+					local payload_index = choice + 1;
+					
+					if #land_encounter_events_details[land_event_key]["payloads"][payload_index] > 0 then
+						local rand_number = cm:random_number(#land_encounter_events_details[land_event_key]["payloads"][payload_index]);
+						
+						renew_effect_bundle(encounter_target, land_encounter_events_details[land_event_key]["payloads"][payload_index][rand_number]);
+						cm:trigger_incident(whose_turn_is_it_name, land_encounter_events_details[land_event_key]["payloads"][payload_index][rand_number], true);
+					end;
+				end;
+			else
+				for j = 1, #land_encounter_events_details[land_encounter_events["marker"][i]]["variation"] do
+					if dilemma == land_encounter_events["marker"][i]..land_encounter_events_details[land_encounter_events["marker"][i]]["variation"][j] then
+						local land_event_key = land_encounter_events["marker"][i];
+						local payload_index = choice + 1;
+						
+						if #land_encounter_events_details[land_event_key]["payloads"][payload_index] > 0 then
+							local rand_number = cm:random_number(#land_encounter_events_details[land_event_key]["payloads"][payload_index]);
+							
+							renew_effect_bundle(encounter_target, land_encounter_events_details[land_event_key]["payloads"][payload_index][rand_number]);
+							land_TriggerEncounterIncident(cm:model():world():whose_turn_is_it(), land_encounter_events_details[land_event_key]["payloads"][payload_index][rand_number]);
+						end;
+					end;
+				end;
+			end;
+		end;
+		
+		--for neo dilemmas
+		for i = 1, #land_neo_counters_list do
+			if dilemma == land_neo_counters_list[i] then
+				if choice == 0 then
+					if land_neo_counters[land_encounter_listener_info[7]][2] >= cm:random_number(100) then					
+						local x, y = cm:find_valid_spawn_location_for_character_from_position(cm:model():world():whose_turn_is_it():name(), temp_loc[1], temp_loc[2], false);
+						
+						land_GenerateEncounterPirate(temp_char, {x, y}, land_neo_counters[land_encounter_listener_info[7]][3]);
+						land_SetupEncounterPostbattle(land_encounter_listener_info[7], whose_turn_is_it);
+					else
+						land_TriggerEncounterIncident(whose_turn_is_it, land_encounter_listener_info[7]);
+						land_encounter_listener_info[3] = false;
+						land_encounter_listener_info[6] = "";
+						land_encounter_listener_info[7] = "";
+					end
+				else
+					land_TriggerEncounterIncident(whose_turn_is_it, land_neo_counters[land_encounter_listener_info[7]][6]);
+					land_encounter_listener_info[3] = false;
+					land_encounter_listener_info[6] = "";
+					land_encounter_listener_info[7] = "";
+				end
+			end
+		end
+	end,
+	true
+);
+
+core:add_listener(
+	"pending_battle_trigger_encounter_at_land_ui_lock",
+	"PendingBattle",
+	true,
+	function(context)
+out("pending battle listener triggered!")
+		local found_encounter_faction = false; 
+		
+		if cm:pending_battle_cache_num_attackers() >= 1 then
+			for i = 1, cm:pending_battle_cache_num_attackers() do
+				local this_char_cqi, this_mf_cqi, current_faction_name = cm:pending_battle_cache_get_attacker(i);
+				if current_faction_name == encounter_pirate_faction then
+					found_encounter_faction = true;
+				end
+			end
+		end		
+		if cm:pending_battle_cache_num_defenders() >= 1 then
+			for i = 1, cm:pending_battle_cache_num_defenders() do
+				local this_char_cqi, this_mf_cqi, current_faction_name = cm:pending_battle_cache_get_defender(i);
+				if current_faction_name == encounter_pirate_faction then
+					found_encounter_faction = true;
+				end
+			end
+		end
+		
+		if found_encounter_faction == true then
+out("its the bandits, locking the UI!")
+			local uim = cm:get_campaign_ui_manager();
+			uim:override("retreat"):lock();
 			cm:disable_event_feed_events(true, "","","diplomacy_faction_destroyed");
 			cm:disable_event_feed_events(true, "wh_event_category_character", "", "");
-			evasion:kill();
-			cm:callback(function() cm:disable_event_feed_events(false, "","","diplomacy_faction_destroyed") end, 1);
-			cm:callback(function() cm:disable_event_feed_events(false, "wh_event_category_character", "", "") end, 1);
-		end;
-		land_encounter_listener_info[2] = false;
+		elseif found_encounter_faction ~= true and land_encounter_listener_info[3] then
+			local uim = cm:get_campaign_ui_manager();
+			uim:override("retreat"):unlock();
+			land_encounter_listener_info[3] = false;
+			land_encounter_listener_info[6] = "";
+			land_encounter_listener_info[7] = "";
+		end
+out("pending battle listener ending")
 	end,
-	false
-	);
-out("ending land_SetupEncounterForceRemoval!")
-end
+	true
+);
 
+core:add_listener(
+	"incident_event_encounter_at_land_add_agent_experience",
+	"IncidentEvent",
+	function(context)
+		local str = context:dilemma()
+		return str == "wh2_main_incident_encounter_at_land_1_b" or str == "wh2_main_incident_encounter_at_land_2_b" or str == "wh2_main_incident_encounter_at_land_3_b"
+	end,
+	function()
+		if encounter_target then
+			cm:add_agent_experience(cm:char_lookup_str(encounter_target), 1500);
+		end
+	end,
+	true
+);
+
+core:add_listener(
+	"incident_occurred_event_encounter_at_land_remove_effect_bundle",
+	"IncidentOccuredEvent",
+	function(context)
+		local str = context:dilemma()
+		return (string.find(str, "wh2_main_encounter_at_land_campaign") or string.find(str, "wh2_main_encounter_at_land_combat")) and not string.find(str, "nor") and not string.find(str, "tmb")
+	end,
+	function(context)
+		local incident = context:dilemma();
+		local whose_turn_is_it_name = cm:model():world():whose_turn_is_it():name();
+
+		cm:callback(function()
+			cm:remove_effect_bundle(incident .. "_dummy", whose_turn_is_it_name)
+		end, 0.5)
+		
+		--[[cm:callback(function()
+			for i = 1, #land_encounter_effect_keys["combat"] do
+				if incident == land_encounter_effect_keys["combat"][i] then
+					cm:remove_effect_bundle(incident .. "_dummy", whose_turn_is_it_name);
+				end;
+			end;	
+			for i = 1, #land_encounter_effect_keys["campaign"] do
+				if incident == land_encounter_effect_keys["campaign"][i] then
+					cm:remove_effect_bundle(incident .. "_dummy", whose_turn_is_it_name);
+				end;
+			end;
+		end, 0.5);]]
+	end,
+	true
+);
+
+core:add_listener(
+	"area_entered_trigger_encounter_at_land",
+	"AreaEntered",
+	function(context)
+		return string.find(context:area_key(), "land")
+	end,
+	function(context)
+		local index = tonumber(string.sub(context:area_key(), 18));
+		local character = context:character();
+
+		if cm:char_is_general_with_army(character) then
+			land_declare_armies()
+			land_TriggerEncounter(index, context);
+		end;
+	end,
+	true
+);
+
+core:add_listener(
+	"faction_turn_start_populate_land_spots",
+	"FactionTurnStart",
+	true, -- TODO make this better and less performative?
+	function(context)
+		local turn_number = cm:model():turn_number();
+		if land_encounter_turn_recorder == 0 then
+			local campaign_key = "";
+			
+			if cm:model():campaign_name("main_warhammer") then
+				chosen_coordinate_set = encounter_land_location_set;
+			elseif cm:model():campaign_name("wh2_main_great_vortex") then
+				chosen_coordinate_set = vortex_encounter_land_location_set;
+			else
+				script_error("ERROR: Trying to set encounters at land, but could not find the campaign name!");
+				return;
+			end;
+
+			-- loop through all of the coords and create encounter_land_spot tables for each to save
+			for i = 1, #chosen_coordinate_set do
+				local spot = {
+					["index"] = i,
+					["location"] = chosen_coordinate_set[i],
+					["occupied"] = "not", -- TODO change this to true/false?
+					["cd"] = 0
+				};
+
+				table.insert(encounter_land_spots, spot);
+			end;
+
+
+			-- populate the direct land spots on the map for the start of a campaign
+			populate_land_spots("treasure", math.floor(encounter_number_start * #encounter_land_spots));
+			populate_land_spots("marker", math.floor(encounter_number_start * #encounter_land_spots));
+	
+		elseif turn_number ~= land_encounter_turn_recorder and turn_number % encounter_spawn_interval ==0 then
+			for i = 1, #encounter_land_spots do
+				if encounter_land_spots[i]["cd"] > 0 then
+					encounter_land_spots[i]["cd"] = encounter_land_spots[i]["cd"] - 1;
+				end;
+			end;
+			
+			if land_get_number_of_occupied_spots_with_category("treasure") < math.floor(encounter_number_treasure * #encounter_land_spots) then
+				populate_land_spots("treasure",  math.floor(encounter_number_per_turn * #encounter_land_spots));
+			end;
+			
+			populate_land_spots("marker", math.floor(encounter_number_per_turn * #encounter_land_spots));
+		end;
+
+		land_encounter_turn_recorder = turn_number;
+	end,
+	true
+);
+
+
+---- Saving + Init ----
 
 cm:add_saving_game_callback(
 	function(context)
-		cm:save_named_value("land_encounter_starting_faction", land_encounter_starting_faction, context);
 		cm:save_named_value("encounter_land_spots", encounter_land_spots, context);
 		cm:save_named_value("land_encounter_turn_recorder", land_encounter_turn_recorder, context);
 		cm:save_named_value("land_encounter_listener_info", land_encounter_listener_info, context);
@@ -954,7 +992,6 @@ cm:add_saving_game_callback(
 cm:add_loading_game_callback(
 	function(context)
 		land_encounter_turn_recorder = cm:load_named_value("land_encounter_turn_recorder", 0, context);
-		land_encounter_starting_faction = cm:load_named_value("land_encounter_starting_faction", "none", context);
 		encounter_land_spots = cm:load_named_value("encounter_land_spots", {}, context);
 		land_encounter_listener_info = cm:load_named_value("land_encounter_listener_info", {}, context);
 	end
@@ -968,7 +1005,7 @@ cm:add_first_tick_callback(
 	end
 );
 
-core:add_listener(
+--[[core:add_listener(
 	"faction_turn_start_declare_varied_land_enc",
 	"FactionTurnStart",
 	function(context) 
@@ -978,7 +1015,7 @@ core:add_listener(
 		land_declare_armies()
 	end,
 	true
-);
+);]]
 
 --[[core:add_listener(
 	"remove_enc_select_land",
