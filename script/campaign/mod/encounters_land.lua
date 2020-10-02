@@ -280,6 +280,13 @@ local function land_get_number_of_occupied_spots_with_category(category)
 	return counter;
 end;
 
+local function land_ClearSpot(context, index)
+	cm:remove_interactable_campaign_marker(context:area_key());
+	cm:remove_interactable_campaign_marker("vfx_"..context:area_key());
+	encounter_land_spots[index]["occupied"] = "not";
+	encounter_land_spots[index]["cd"] = encounter_spot_base_cd;
+	encounter_land_spots[index]["model"] = 0;
+end
 
 local function populate_land_spots(category, land_number_of_spots)
 	local land_available_spots = land_get_available_encounter_spots();
@@ -398,43 +405,47 @@ local function populate_land_spots(category, land_number_of_spots)
 	end;
 end;
 
-function land_TriggerEncounterIncident(faction, incident)
-	out("triggered encounter incident");
+local function land_TriggerEncounterIncident(faction, incident)
+	--out("triggered encounter incident");
+	local incident_key = incident
 	if faction:subculture() == "wh2_dlc09_sc_tmb_tomb_kings" then
-		cm:trigger_incident(faction:name(), incident.."_tmb", true);
+		incident_key = incident_key .. "_tmb"
 	elseif faction:subculture() == "wh_main_sc_nor_norsca" then
-		cm:trigger_incident(faction:name(), incident.."_nor", true);
-	else
-		cm:trigger_incident(faction:name(), incident, true);
+		incident_key = incident_key .. "_nor"
 	end
 	
+	cm:trigger_incident(faction:name(), incident_key, true);
+
+	-- getting rid of VCoast hold-overs for now, decide later -- TODO
+	
 	--check aranessa skill
-	if land_neo_counters[incident] ~= nil then
+	--[[if land_neo_counters[incident] ~= nil then
 		local skill_found = false;
-		if faction:character_list():num_items() >= 1 then
-			for i = 1, faction:character_list():num_items() do
-				if faction:character_list():item_at(i-1):character_subtype_key() == "wh2_dlc11_cst_aranessa" and faction:character_list():item_at(i-1):has_skill("wh2_dlc11_skill_cst_aranessa_unique_5") then
-					--trigger extra loot event
-					if land_neo_counters[incident][5] ~= nil then
-						out(land_neo_counters[incident][5]);
-						cm:callback(function()
-							cm:trigger_incident(faction:name(), land_neo_counters[incident][5], true);
-						end, 0.5);
-					end
+		local char_list = faction:character_list()
+		for i = 0, char_list:num_items() -1 do
+			local char = char_list:item_at(i)
+			if char:character_subtype_key() == "wh2_dlc11_cst_aranessa" and char:has_skill("wh2_dlc11_skill_cst_aranessa_unique_5") then
+				--trigger extra loot event
+				if land_neo_counters[incident][5] ~= nil then
+					--out(land_neo_counters[incident][5]);
+					cm:callback(function()
+						cm:trigger_incident(faction:name(), land_neo_counters[incident][5], true);
+					end, 0.5);
 				end
 			end
 		end
 		
 		--check treasure map drops
 		if faction:subculture() == "wh2_dlc11_sc_cst_vampire_coast" then
-				if land_neo_counters[incident][4] ~= nil then
-					TriggerTreasureMapMission(faction:name(), land_neo_counters[incident][4])
-				end
+			if land_neo_counters[incident][4] ~= nil then
+				TriggerTreasureMapMission(faction:name(), land_neo_counters[incident][4])
+			end
 		end
-	end
+	end]]
 end
 
-function land_Remodulate(vector, desired_mag)
+-- unused
+--[[local function land_Remodulate(vector, desired_mag)
 	local mag = math.sqrt(vector[1] * vector[1] + vector[2] * vector[2]);
 	local result_vector = {0,0};
 	local scale = desired_mag/mag; 
@@ -444,8 +455,8 @@ function land_Remodulate(vector, desired_mag)
 	end
 	result_vector[1] = math.ceil(vector[1] * scale);
 	result_vector[2] = math.ceil(vector[2] * scale);
-	return result_vector; 
-end
+	return result_vector;
+end]]
 
 
 local function land_TriggerEncounter(index, context)
@@ -454,36 +465,41 @@ local function land_TriggerEncounter(index, context)
 	local faction_name = faction:name();
 	encounter_target = character:command_queue_index();
 	local dont_remove_encounter = false;
+
 	if faction:is_human() and cm:model():world():whose_turn_is_it():is_human() then
-		if encounter_land_spots[index]["occupied"] == "treasure" then
-			local incident = encounter_land_spots[index]["event"];
-			out("this is "..incident);
+		local land_spot = encounter_land_spots[index]
+		if land_spot["occupied"] == "treasure" then
+			local incident = land_spot["event"];
+
+			--out("this is "..incident);
 			--out("checking for"..land_neo_counters[incident][1]);
 			
 			if land_neo_counters[incident][1] ~= "" and land_neo_counters[incident][1] ~= nil then
+
 				--check if the army is in proper stance
 				if character:military_force():active_stance() == "MILITARY_FORCE_ACTIVE_STANCE_TYPE_DEFAULT" then
-				--if true then
 					cm:trigger_dilemma(faction_name, land_neo_counters[incident][1]);
 					temp_char = character;
-					temp_loc = encounter_land_spots[index]["location"];
+					temp_loc = land_spot["location"];
 					--land_SetupEncounterPostbattle(incident, faction);
+
 					land_encounter_listener_info[3] = true;
 					land_encounter_listener_info[6] = faction_name;
 					land_encounter_listener_info[7] = incident;
 				else
 					dont_remove_encounter = true;
+
 					--trigger eventfeed
-						cm:show_message_event_located(
+					cm:show_message_event_located(
 						faction_name,
 						"event_feed_strings_text_wh2_dlc11_event_feed_string_scripted_event_passing_by_land_encounter_title",
 						"event_feed_strings_text_wh2_dlc11_event_feed_string_scripted_event_passing_by_land_encounter_primary_details",
 						"event_feed_strings_text_wh2_dlc11_event_feed_string_scripted_event_passing_by_land_encounter_secondary_details",
-						encounter_land_spots[index]["location"][1],
-						encounter_land_spots[index]["location"][2],
+						land_spot["location"][1],
+						land_spot["location"][2],
 						false,
 						1017
-						);	
+					);	
 				end
 			else
 				land_TriggerEncounterIncident(faction, incident);
@@ -493,100 +509,102 @@ local function land_TriggerEncounter(index, context)
 				end;
 			end;
 					
-		elseif encounter_land_spots[index]["occupied"] == "marker" then
-			local dilemma = encounter_land_spots[index]["event"];
+		elseif land_spot["occupied"] == "marker" then
+			local dilemma = land_spot["event"];
 			out("marker discovered!");
-			encounter_target = character:military_force():command_queue_index();		
-			cm:trigger_dilemma(faction_name, dilemma);	
+
+			encounter_target = character:military_force():command_queue_index();
+			cm:trigger_dilemma(faction_name, dilemma);
 		end;
 	end;
 	
 	if dont_remove_encounter == false then
 		land_ClearSpot(context, index);
 	end
-	
-	
 end
 
-function land_ClearSpot(context, index)
-	cm:remove_interactable_campaign_marker(context:area_key());
-	cm:remove_interactable_campaign_marker("vfx_"..context:area_key());
-	encounter_land_spots[index]["occupied"] = "not";
-	encounter_land_spots[index]["cd"] = encounter_spot_base_cd;
-	encounter_land_spots[index]["model"] = 0;
-end
+local function land_SetupEncounterPostbattle(incident, faction)
 
-function land_SetupEncounterPostbattle(incident, faction)
 	core:add_listener(
-	"Land_EncounterPostbattle",
-	"BattleCompleted", 
-	true,
-	function(context)
-out("starting PostBattle Listener!")
-		local found_encounter_faction = false; 
-		local loot = false;
-		local im = invasion_manager;
-		local evasion = im:get_invasion("land_encounter_invasion");
-		if cm:pending_battle_cache_num_attackers() >= 1 then
-			for i = 1, cm:pending_battle_cache_num_attackers() do
-				local this_char_cqi, this_mf_cqi, current_faction_name = cm:pending_battle_cache_get_attacker(i);
-				if current_faction_name == encounter_pirate_faction then
-					found_encounter_faction = true;
-					if cm:model():character_for_command_queue_index(this_char_cqi):is_null_interface()==true or (cm:model():character_for_command_queue_index(this_char_cqi):is_null_interface() == false and cm:model():character_for_command_queue_index(this_char_cqi):won_battle() == false) then
-						loot = true; 
-					end
-					if evasion ~= nil then
-out("killing invasion on land_SetupEncounterPostbattle1")
-						cm:disable_event_feed_events(true, "","","diplomacy_faction_destroyed");
-						cm:disable_event_feed_events(true, "wh_event_category_character", "", "");
-						evasion:kill();
-						cm:callback(function() cm:disable_event_feed_events(false, "","","diplomacy_faction_destroyed") end, 1);
-						cm:callback(function() cm:disable_event_feed_events(false, "wh_event_category_character", "", "") end, 1);
-					end;
-				end
-			end
-		end		
-		if cm:pending_battle_cache_num_defenders() >= 1 then
-			for i = 1, cm:pending_battle_cache_num_defenders() do
-				local this_char_cqi, this_mf_cqi, current_faction_name = cm:pending_battle_cache_get_defender(i);
-				if current_faction_name == encounter_pirate_faction then
-					found_encounter_faction = true;
-					if cm:model():character_for_command_queue_index(this_char_cqi):is_null_interface()==true or (cm:model():character_for_command_queue_index(this_char_cqi):is_null_interface() == false and cm:model():character_for_command_queue_index(this_char_cqi):won_battle() == false) then
-						loot = true; 
-					end
-					if evasion ~= nil then
-out("killing invasion on land_SetupEncounterPostbattle1")
-						cm:disable_event_feed_events(true, "","","diplomacy_faction_destroyed");
-						cm:disable_event_feed_events(true, "wh_event_category_character", "", "");
-						evasion:kill();
-						cm:callback(function() cm:disable_event_feed_events(false, "","","diplomacy_faction_destroyed") end, 1);
-						cm:callback(function() cm:disable_event_feed_events(false, "wh_event_category_character", "", "") end, 1);
-					end;
+		"Land_EncounterPostbattle",
+		"BattleCompleted", 
+		true,
+		function(context)
+			--out("starting PostBattle Listener!")
+			local found_encounter_faction = false; 
+			local loot = false;
 
+			local im = invasion_manager;
+			local evasion = im:get_invasion("land_encounter_invasion");
+
+			local encounter_general_cqi = 0
+
+			for i = 1, cm:pending_battle_cache_num_attackers() do
+				local char_cqi, _, faction_name = cm:pending_battle_cache_get_attacker(i)
+
+				if faction_name == encounter_pirate_faction then
+					found_encounter_faction = true
+					encounter_general_cqi = char_cqi
 				end
 			end
-		end
-		out("checking if post loot option is needed");
-		out(found_encounter_faction);
-		out(land_encounter_listener_info[3]);
-		out(loot);
-		cm:callback(function() cm:disable_event_feed_events(false, "","","diplomacy_faction_destroyed") end, 1);
-		cm:callback(function() cm:disable_event_feed_events(false, "wh_event_category_character", "", "") end, 1);
-		if found_encounter_faction == true and land_encounter_listener_info[3] then
-			local uim = cm:get_campaign_ui_manager();
-			uim:override("retreat"):unlock();
-			land_encounter_listener_info[3] = false;
-			land_encounter_listener_info[6] = "";
-			land_encounter_listener_info[7] = "";
-			if loot then
-				out("triggering loot event");
-				local faction_name = faction:name();
-				land_TriggerEncounterIncident(faction, incident);
+
+			for i = 1, cm:pending_battle_cache_num_defenders() do
+				local char_cqi, _, faction_name = cm:pending_battle_cache_get_defender(i)
+
+				if faction_name == encounter_pirate_faction then
+					found_encounter_faction = true
+					encounter_general_cqi = char_cqi
+				end
 			end
-		end
-out("ending PostBattle Listener!")
-	end,
-	false
+
+			if encounter_general_cqi == 0 then
+				-- not found, bye
+				return
+			end
+
+			local char = cm:model():character_for_command_queue_index(encounter_general_cqi)
+
+			if char:is_null_interface() or not char:won_battle() then
+				loot = true
+			end
+
+			if evasion then
+				cm:disable_event_feed_events(true, "","","diplomacy_faction_destroyed");
+				cm:disable_event_feed_events(true, "wh_event_category_character", "", "");
+				evasion:kill();
+
+				cm:callback(function() 
+					cm:disable_event_feed_events(false, "","","diplomacy_faction_destroyed") 
+					cm:disable_event_feed_events(false, "wh_event_category_character", "", "") 
+				end, 1);
+			end
+
+			--out("checking if post loot option is needed");
+			--out(found_encounter_faction);
+			--out(land_encounter_listener_info[3]);
+			--out(loot);
+			
+			--cm:callback(function() cm:disable_event_feed_events(false, "","","diplomacy_faction_destroyed") end, 1);
+			--cm:callback(function() cm:disable_event_feed_events(false, "wh_event_category_character", "", "") end, 1);
+
+			if found_encounter_faction and land_encounter_listener_info[3] then
+				local uim = cm:get_campaign_ui_manager();
+				uim:override("retreat"):unlock();
+
+				-- removing listener info stuff
+				land_encounter_listener_info[3] = false;
+				land_encounter_listener_info[6] = "";
+				land_encounter_listener_info[7] = "";
+
+				if loot then
+					--out("triggering loot event");
+					--local faction_name = faction:name();
+					land_TriggerEncounterIncident(faction, incident);
+				end
+			end
+			--out("ending PostBattle Listener!")
+		end,
+		false
 	);
 
 end
@@ -610,6 +628,7 @@ local function land_ReconstructListeners()
 		out("reconstructing postbattle listeners");
 		local faction = cm:model():world():faction_by_key(faction_key);
 		land_SetupEncounterPostbattle(incident, faction);
+
 		cm:disable_event_feed_events(true, "","","diplomacy_faction_destroyed");
 		cm:disable_event_feed_events(true, "wh_event_category_character", "", "");	
 		local uim = cm:get_campaign_ui_manager();
@@ -752,14 +771,18 @@ end
 core:add_listener(
 	"dilemma_choice_made_event_trigger_counter_at_land_incident",
 	"DilemmaChoiceMadeEvent",
-	true,
+	function(context)
+		return string.find(context:dilemma(), "encounter_at_land") and encounter_target ~= 0
+	end,
 	function(context)
 		local choice = context:choice();
 		local dilemma = context:dilemma();
-		local whose_turn_is_it_name = cm:model():world():whose_turn_is_it():name();
 		local whose_turn_is_it = cm:model():world():whose_turn_is_it();
+		local whose_turn_is_it_name = whose_turn_is_it:name()
 		
-		out("encounter_target is"..encounter_target);
+		--out("encounter_target is"..encounter_target);
+
+
 		--for old timie dilemmas
 		for i = 1, #land_encounter_events["marker"] do
 			if #land_encounter_events_details[land_encounter_events["marker"][i]]["variation"] == 0 then
@@ -821,14 +844,12 @@ core:add_listener(
 core:add_listener(
 	"pending_battle_trigger_encounter_at_land_ui_lock",
 	"PendingBattle",
-	true,
 	function(context)
-out("pending battle listener triggered!")
 		local found_encounter_faction = false; 
 		
 		if cm:pending_battle_cache_num_attackers() >= 1 then
 			for i = 1, cm:pending_battle_cache_num_attackers() do
-				local this_char_cqi, this_mf_cqi, current_faction_name = cm:pending_battle_cache_get_attacker(i);
+				local _, _, current_faction_name = cm:pending_battle_cache_get_attacker(i);
 				if current_faction_name == encounter_pirate_faction then
 					found_encounter_faction = true;
 				end
@@ -836,19 +857,22 @@ out("pending battle listener triggered!")
 		end		
 		if cm:pending_battle_cache_num_defenders() >= 1 then
 			for i = 1, cm:pending_battle_cache_num_defenders() do
-				local this_char_cqi, this_mf_cqi, current_faction_name = cm:pending_battle_cache_get_defender(i);
+				local _, _, current_faction_name = cm:pending_battle_cache_get_defender(i);
 				if current_faction_name == encounter_pirate_faction then
 					found_encounter_faction = true;
 				end
 			end
 		end
+
+		return found_encounter_faction
+	end,
+	function(context)
+		local uim = cm:get_campaign_ui_manager();
+		uim:override("retreat"):lock();
+		cm:disable_event_feed_events(true, "","","diplomacy_faction_destroyed");
+		cm:disable_event_feed_events(true, "wh_event_category_character", "", "");
 		
-		if found_encounter_faction == true then
-out("its the bandits, locking the UI!")
-			local uim = cm:get_campaign_ui_manager();
-			uim:override("retreat"):lock();
-			cm:disable_event_feed_events(true, "","","diplomacy_faction_destroyed");
-			cm:disable_event_feed_events(true, "wh_event_category_character", "", "");
+		--[[
 		elseif found_encounter_faction ~= true and land_encounter_listener_info[3] then
 			local uim = cm:get_campaign_ui_manager();
 			uim:override("retreat"):unlock();
@@ -856,7 +880,7 @@ out("its the bandits, locking the UI!")
 			land_encounter_listener_info[6] = "";
 			land_encounter_listener_info[7] = "";
 		end
-out("pending battle listener ending")
+		out("pending battle listener ending")]]
 	end,
 	true
 );
