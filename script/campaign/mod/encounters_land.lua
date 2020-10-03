@@ -25,8 +25,9 @@ local land_encounter_events = {
 };
 
 --neo counters, corresponding info, including reward, chance of battle, enemy size, treausre map chance(only cst), extra loot event
-local treausre_map_drop_rate = {30 , 50};
+local treausre_map_drop_rate = {30 , 50}; -- TODO remove
 
+-- TODO refactor this nonsense
 local land_neo_counters = {
 	["wh2_main_incident_encounter_at_land_1_a"] = {"wh2_dlc11_dilemma_neo_encounter_at_land_1_a", 100, 10, treausre_map_drop_rate[1],"wh2_dlc11_neo_counter_extra_loot", "wh2_dlc11_incident_neo_encounter_at_land_1_a"},
 	["wh2_main_incident_encounter_at_land_1_b"] = {"wh2_dlc11_dilemma_neo_encounter_at_land_1_b", 100, 10, treausre_map_drop_rate[1],"wh2_dlc11_neo_counter_extra_loot", "wh2_dlc11_incident_neo_encounter_at_land_1_b"},
@@ -150,25 +151,6 @@ local encounter_target = 0;
 local temp_char = nil; 
 
 local temp_loc = nil;
-
-local temp_event = nil;
-
-local land_encounter_effect_keys = {
-	["combat"] = {
-		"wh2_main_encounter_at_land_combat_1",
-		"wh2_main_encounter_at_land_combat_2",
-		"wh2_main_encounter_at_land_combat_3",
-		"wh2_main_encounter_at_land_combat_4",
-		"wh2_main_encounter_at_land_combat_5"
-	},
-	
-	["campaign"] = {
-		"wh2_main_encounter_at_land_campaign_1",
-		"wh2_main_encounter_at_land_campaign_2",
-		"wh2_main_encounter_at_land_campaign_3",
-		"wh2_main_encounter_at_land_campaign_4"
-	}
-};
 
 -- declare the bandit army in the random army manager
 local function land_declare_armies()
@@ -625,17 +607,22 @@ local function land_ReconstructListeners()
 	
 	if encounter_post_battle_listener == true then
 		--postbattle loot listerner
-		out("reconstructing postbattle listeners");
+		--out("reconstructing postbattle listeners");
+
 		local faction = cm:model():world():faction_by_key(faction_key);
 		land_SetupEncounterPostbattle(incident, faction);
 
-		cm:disable_event_feed_events(true, "","","diplomacy_faction_destroyed");
-		cm:disable_event_feed_events(true, "wh_event_category_character", "", "");	
+		cm:callback(function()
+			cm:disable_event_feed_events(true, "","","diplomacy_faction_destroyed");
+			cm:disable_event_feed_events(true, "wh_event_category_character", "", "");
+		end, 1)
+
 		local uim = cm:get_campaign_ui_manager();
 		uim:override("retreat"):lock();
 	end
 end
 
+-- level up the general
 local function levels_for_land_encounters(force_leader)
 	local char_str_enc = cm:char_lookup_str(force_leader:command_queue_index());
 	local turn = cm:model():turn_number()
@@ -676,50 +663,61 @@ end
 
 
 --generate encounter pirates
-function land_GenerateEncounterPirate(character, loc, unit)
-out("starting land_GenerateEncounterPirate!")
+local function land_GenerateEncounterPirate(character, loc, unit)
+	--out("starting land_GenerateEncounterPirate!")
+
 	local faction = character:faction();
 	local faction_name = faction:name();
 	local cqi = character:command_queue_index();
 	local force_cqi = character:military_force():command_queue_index();
 	local variable_units = cm:random_number(5)
-	force = random_army_manager:generate_force("encounter_force_bandits", unit, false);
-	local invasion_5 = invasion_manager:new_invasion("land_encounter_invasion", encounter_pirate_faction, force, loc);
-	invasion_5:set_target("CHARACTER", cqi, faction_name);
-	invasion_5:apply_effect("wh_main_bundle_military_upkeep_free_force", -1);
+	local force = random_army_manager:generate_force("encounter_force_bandits", unit, false);
+
+	local invasion = invasion_manager:new_invasion("land_encounter_invasion", encounter_pirate_faction, force, loc);
+	invasion:set_target("CHARACTER", cqi, faction_name);
+	invasion:apply_effect("wh_main_bundle_military_upkeep_free_force", -1);
+
+	local unit_exp_gain_turn_landenc
+	--local char_exp_gain_turn_landenc
+
 	local turn = cm:model():turn_number()
-		if turn <= 25 then
+	if turn <= 25 then
 		unit_exp_gain_turn_landenc = 1
-		char_exp_gain_turn_landenc = 1
-		elseif turn > 25 and turn <= 50 then 
-		char_exp_gain_turn_landenc = 3
+		--char_exp_gain_turn_landenc = 1
+	elseif turn > 25 and turn <= 50 then 
+		--char_exp_gain_turn_landenc = 3
 		unit_exp_gain_turn_landenc = 3
-		elseif turn > 50 and turn <= 75 then
-		char_exp_gain_turn_landenc = 5
+	elseif turn > 50 and turn <= 75 then
+		--char_exp_gain_turn_landenc = 5
 		unit_exp_gain_turn_landenc = 4
-		elseif turn > 75 and turn <= 100 then
-		char_exp_gain_turn_landenc = 7
+	elseif turn > 75 and turn <= 100 then
+		--char_exp_gain_turn_landenc = 7
 		unit_exp_gain_turn_landenc = 5
-		elseif turn > 100 and turn <= 125 then
-		char_exp_gain_turn_landenc = 9
+	elseif turn > 100 and turn <= 125 then
+		--char_exp_gain_turn_landenc = 9
 		unit_exp_gain_turn_landenc = 6
-		elseif turn > 125 and turn <= 150 then
-		char_exp_gain_turn_landenc = 11
+	elseif turn > 125 and turn <= 150 then
+		--char_exp_gain_turn_landenc = 11
 		unit_exp_gain_turn_landenc = 7
-		elseif turn > 150 and turn <= 175 then
-		char_exp_gain_turn_landenc = 13
+	elseif turn > 150 and turn <= 175 then
+		--char_exp_gain_turn_landenc = 13
 		unit_exp_gain_turn_landenc = 8
-		elseif turn > 175 then
-		char_exp_gain_turn_landenc = 15
+	elseif turn > 175 then
+		--char_exp_gain_turn_landenc = 15
 		unit_exp_gain_turn_landenc = 9
-		end;
-	invasion_5:add_unit_experience(unit_exp_gain_turn_landenc)
-	invasion_5:create_general(false, army_land_encounters_leader, bandit_name_land_encounters, "", "", "")
-	invasion_5:start_invasion(
+	end;
+
+	invasion:add_unit_experience(unit_exp_gain_turn_landenc)
+	invasion:create_general(false, army_land_encounters_leader, bandit_name_land_encounters, "", "", "")
+
+	invasion:start_invasion(
 		function(self)
 			local force_leader = self:get_general();
 			levels_for_land_encounters(force_leader)
-			cm:callback(function() skills_for_land_encounters(force_leader) end, 0.1)
+
+			cm:callback(function() 
+				skills_for_land_encounters(force_leader) 
+			end, 0.1)
 			
 			cm:scroll_camera_from_current(false, 6, {force_leader:display_position_x(), force_leader:display_position_y(), 14.768, 0.0, 12.0});
 			
@@ -729,21 +727,26 @@ out("starting land_GenerateEncounterPirate!")
 				true,
 				function(context)
 					local faction = context:character():faction():name();
-out("declared war - land encounters!")
-					out(faction);
-					out(land_encounter_listener_info[6]);
-out("forcing")
-out(force_leader:military_force():command_queue_index())
-out("to attack")
-out(force_cqi)
+					--out("declared war - land encounters!")
+					--out(faction);
+					--out(land_encounter_listener_info[6]);
+					--out("forcing")
+					--out(force_leader:military_force():command_queue_index())
+					--out("to attack")
+					--out(force_cqi)
+
+
 					if faction == encounter_pirate_faction then
-out("faction is the bandits, doing it!")
-					cm:force_attack_of_opportunity(force_cqi, force_leader:military_force():command_queue_index(), false);
+						--out("faction is the bandits, doing it!")
+						cm:force_attack_of_opportunity(force_cqi, force_leader:military_force():command_queue_index(), false);
 					end
 				end,
 				false
 			);
-			cm:callback(function() cm:force_declare_war(encounter_pirate_faction, faction_name,  false, false, false); end, 0.4)
+
+			cm:callback(function() 
+				cm:force_declare_war(encounter_pirate_faction, faction_name,  false, false, false); 
+			end, 0.4)
 			
 		end,
 		false,
@@ -754,15 +757,15 @@ out("faction is the bandits, doing it!")
 	land_encounter_listener_info[2] = true;
 		
 	land_SetupEncounterForceRemoval();
-out("ending land_GenerateEncounterPirate!")
-out("Listeners are:")
-out(land_encounter_listener_info[1])
-out(land_encounter_listener_info[2])
-out(land_encounter_listener_info[3])
-out(land_encounter_listener_info[4])
-out(land_encounter_listener_info[5])
-out(land_encounter_listener_info[6])
-out(land_encounter_listener_info[7])
+	--out("ending land_GenerateEncounterPirate!")
+	--out("Listeners are:")
+	--out(land_encounter_listener_info[1])
+	--out(land_encounter_listener_info[2])
+	--out(land_encounter_listener_info[3])
+	--out(land_encounter_listener_info[4])
+	--out(land_encounter_listener_info[5])
+	--out(land_encounter_listener_info[6])
+	--out(land_encounter_listener_info[7])
 end
 
 ---- The Listener Zone ----
@@ -885,6 +888,7 @@ core:add_listener(
 	true
 );
 
+-- TODO uh, experience is added twice for the lord? (levels_for_land_encounters)
 core:add_listener(
 	"incident_event_encounter_at_land_add_agent_experience",
 	"IncidentEvent",
@@ -952,11 +956,12 @@ core:add_listener(
 core:add_listener(
 	"faction_turn_start_populate_land_spots",
 	"FactionTurnStart",
-	true, -- TODO make this better and less performative?
+	true, -- TODO make this better and less performative? this triggers for literally every single faction
 	function(context)
 		local turn_number = cm:model():turn_number();
 		if land_encounter_turn_recorder == 0 then
-			local campaign_key = "";
+
+			local chosen_coordinate_set
 			
 			if cm:model():campaign_name("main_warhammer") then
 				chosen_coordinate_set = encounter_land_location_set;
@@ -1002,6 +1007,26 @@ core:add_listener(
 	end,
 	true
 );
+
+---- MCT Options ----
+
+core:add_listener(
+	"land_encounter_mct_options",
+	"MctInitialized",
+	true,
+	function(context)
+		local mct = context:mct()
+		local mct_mod = mct:get_mod_by_key("land_encounters")
+
+		local encounter_start_option = mct_mod:get_option_by_key("encounter_start")
+		local start_num = encounter_start_option:get_finalized_setting()
+
+		encounter_start_option:set_uic_locked(true, "Can only change this option before starting a new campaign.")
+
+		encounter_number_start = start_num
+	end,
+	true
+)
 
 
 ---- Saving + Init ----
